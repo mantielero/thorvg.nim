@@ -598,6 +598,8 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
         discard wrap.add(layerScene)
         outScene = wrap
       applyMasks(outScene, layer, frameNo, world)
+    if layer.blendMode != BlendMethod.Normal:
+      discard outScene.blend(layer.blendMode)
     if addToRoot:
       discard root.add(outScene)
     outScene

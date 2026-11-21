@@ -43,8 +43,8 @@
 - Módulo: `src/thorvg/lottie/builder/builder.nim`
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
 - Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones.
-- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR; opacidad de grupo aplicada; masks Lottie básicos (`masksProperties` parse+apply, sin expand); mattes básicos (`tt/tp/td` parse+resolve+`Paint.mask`, matte source skipped in normal render).
-- Mejoras recientes: mattes mejoran `test7` 33930/43018/53650/2930/2930->21282/32765/32835/2930/2930 y `test10` a 18648/19925/16193/19747/21159. `test13` sin cambio. Sin regresiones.
+- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR; opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`).
+- Mejoras recientes: `test10` 18648/19925/16193/19747/21159 -> 11815/16556/15993/16378/15253 por `bm`. `test13` sin cambio (matted layers invisibles por parent Null 8 opacity 0; diffs por otras features). Sin regresiones.
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
 - Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
 - Bloqueadores: asset imagen slot, masks expand/mattes, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino, rd paths, rp/mm/pb/op, RenderContext/propagator C++.

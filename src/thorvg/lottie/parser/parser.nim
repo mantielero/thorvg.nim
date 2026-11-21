@@ -758,6 +758,7 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
     matteTarget: nil,
     matteSrc: false,
     mix: -1,
+    blendMode: BlendMethod.Normal,
     inPoint: 0.0'f32, outPoint: 0.0'f32, startTime: 0.0'f32, startFrame: 0.0'f32,
     timeStretch: 1.0'f32,
     timeRemap: newScalarProp(-1.0'f32),
@@ -777,6 +778,10 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
     result.matteType = MaskMethod(tt)
   if j.hasKey("tp"): result.mix = asInt(j["tp"], -1)
   if j.hasKey("td"): result.matteSrc = asInt(j["td"], 0) != 0
+  if j.hasKey("bm"):
+    let bm = asInt(j["bm"], 0)
+    if bm >= 0 and bm <= 16:
+      result.blendMode = BlendMethod(bm)
   if j.hasKey("ip"): result.inPoint = asFloat(j["ip"])
   if j.hasKey("op"): result.outPoint = asFloat(j["op"])
   if j.hasKey("st"):
