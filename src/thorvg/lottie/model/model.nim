@@ -55,6 +55,8 @@ type
     color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
     width*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    dashes*: seq[LottieGenericProperty[LottieScalarFrame[float32], float32]]
+    dashOffset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 
   LottieTrimpathObj* = ref object of LottieObject
     start*: LottieGenericProperty[LottieScalarFrame[float32], float32]
@@ -98,6 +100,8 @@ type
     angle*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     width*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     gradType*: int # 1=linear, 2=radial
+    dashes*: seq[LottieGenericProperty[LottieScalarFrame[float32], float32]]
+    dashOffset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 
   LottieRoundedCornerObj* = ref object of LottieObject
     radius*: LottieGenericProperty[LottieScalarFrame[float32], float32]

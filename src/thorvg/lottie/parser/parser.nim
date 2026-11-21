@@ -543,6 +543,16 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
       if hasExpr(j["w"]): warnings.add(ctx & ".w: stroke width has expression, skipped")
       st.width = parseScalarProp(j["w"], 0.0'f32)
       if st.width.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: st.width.sid, apply: proc(ov: JsonNode) = st.width = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("d") and j["d"].kind == JArray:
+      st.dashOffset = newScalarProp(0.0'f32)
+      for di in j["d"]:
+        if di.kind != JObject or not di.hasKey("v"): continue
+        let dn = if di.hasKey("n"): di["n"].getStr("") else: ""
+        let dv = parseScalarProp(di["v"], 0.0'f32)
+        if dn == "o":
+          st.dashOffset = dv
+        else:
+          st.dashes.add(dv)
     return st
   of "sr":
     let ps = LottiePolystarObj(objType: otPolystar, name: nm, hidden: hd,
@@ -638,6 +648,16 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
         gSlotBindings.add(LottieSlotBinding(sid: gsid, apply: proc(ov: JsonNode) =
           var s2: uint32 = 0
           gg2.stops = parseGradientStops(ov, s2)))
+    if j.hasKey("d") and j["d"].kind == JArray:
+      gs.dashOffset = newScalarProp(0.0'f32)
+      for di in j["d"]:
+        if di.kind != JObject or not di.hasKey("v"): continue
+        let dn = if di.hasKey("n"): di["n"].getStr("") else: ""
+        let dv = parseScalarProp(di["v"], 0.0'f32)
+        if dn == "o":
+          gs.dashOffset = dv
+        else:
+          gs.dashes.add(dv)
     return gs
   of "tm":
     let tm = LottieTrimpathObj(objType: otTrimpath, name: nm, hidden: hd,

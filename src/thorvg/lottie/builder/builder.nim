@@ -23,6 +23,9 @@ type
     strokeCap*: StrokeCap
     strokeJoin*: StrokeJoin
     strokeMiter*: float32
+    strokeDashes*: seq[float32]
+    strokeDashOffset*: float32
+    hasStrokeDash*: bool
     trimStart*: float32
     trimEnd*: float32
     trimOffset*: float32
@@ -53,6 +56,9 @@ proc identityCtx(): LottieBuildCtx =
     strokeCap: StrokeCap.Round,
     strokeJoin: StrokeJoin.Round,
     strokeMiter: 4.0'f32,
+    strokeDashes: @[],
+    strokeDashOffset: 0.0'f32,
+    hasStrokeDash: false,
     trimStart: 0.0'f32,
     trimEnd: 100.0'f32,
     trimOffset: 0.0'f32,
@@ -217,12 +223,16 @@ proc applyStyle(s: Shape; ctx: LottieBuildCtx) =
     discard s.strokeCap(ctx.strokeCap)
     discard s.strokeJoin(ctx.strokeJoin)
     discard s.strokeMiterlimit(ctx.strokeMiter)
+    if ctx.hasStrokeDash:
+      discard s.strokeDash(ctx.strokeDashes, ctx.strokeDashOffset)
   elif ctx.hasStroke and ctx.strokeWidth > 0.0'f32:
     discard s.strokeWidth(ctx.strokeWidth)
     discard s.strokeFill(ctx.strokeColor.r, ctx.strokeColor.g, ctx.strokeColor.b, ctx.strokeColor.a)
     discard s.strokeCap(ctx.strokeCap)
     discard s.strokeJoin(ctx.strokeJoin)
     discard s.strokeMiterlimit(ctx.strokeMiter)
+    if ctx.hasStrokeDash:
+      discard s.strokeDash(ctx.strokeDashes, ctx.strokeDashOffset)
   if ctx.hasTrim:
     let off = ctx.trimOffset / 360.0'f32 * 100.0'f32
     var b = normTrim(ctx.trimStart + off)
@@ -393,6 +403,12 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.hasStroke = true
         local.hasStrokeGrad = false
         local.strokeWidth = st.width.eval(frameNo)
+        if st.dashes.len > 0:
+          local.strokeDashes.setLen(0)
+          for d in st.dashes:
+            local.strokeDashes.add(max(0.0'f32, d.eval(frameNo)))
+          local.strokeDashOffset = st.dashOffset.eval(frameNo)
+          local.hasStrokeDash = true
     elif child of LottieGradientFillObj:
       let gf = LottieGradientFillObj(child)
       if not gf.hidden:
@@ -407,6 +423,12 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.hasStrokeGrad = true
         local.hasStroke = true
         local.strokeWidth = gs.width.eval(frameNo)
+        if gs.dashes.len > 0:
+          local.strokeDashes.setLen(0)
+          for d in gs.dashes:
+            local.strokeDashes.add(max(0.0'f32, d.eval(frameNo)))
+          local.strokeDashOffset = gs.dashOffset.eval(frameNo)
+          local.hasStrokeDash = true
     elif child of LottieTrimpathObj:
       let tm = LottieTrimpathObj(child)
       if not tm.hidden:
