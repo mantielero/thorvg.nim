@@ -26,6 +26,7 @@ type
     trimStart*: float32
     trimEnd*: float32
     trimOffset*: float32
+    trimSimultaneous*: bool
     hasTrim*: bool
     roundCorner*: float32
     zigzagAmp*: float32
@@ -55,6 +56,7 @@ proc identityCtx(): LottieBuildCtx =
     trimStart: 0.0'f32,
     trimEnd: 100.0'f32,
     trimOffset: 0.0'f32,
+    trimSimultaneous: true,
     hasTrim: false,
   )
 
@@ -227,7 +229,7 @@ proc applyStyle(s: Shape; ctx: LottieBuildCtx) =
     var e = normTrim(ctx.trimEnd + off)
     # skip no-op trim
     if not (b == 0.0'f32 and e == 1.0'f32):
-      discard s.trimpath(b, e, true)
+      discard s.trimpath(b, e, ctx.trimSimultaneous)
   if ctx.opacity < 255'u8:
     discard s.opacity(ctx.opacity)
 
@@ -411,6 +413,7 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.trimStart = tm.start.eval(frameNo)
         local.trimEnd = tm.`end`.eval(frameNo)
         local.trimOffset = tm.offset.eval(frameNo)
+        local.trimSimultaneous = (tm.mode != 2)
         local.hasTrim = true
     elif child of LottieRoundedCornerObj:
       let rd = LottieRoundedCornerObj(child)

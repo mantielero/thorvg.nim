@@ -60,6 +60,7 @@ type
     start*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     `end`*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     offset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    mode*: int # 1=simultaneous, 2=individual
 
   LottiePolystarObj* = ref object of LottieObject
     position*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]

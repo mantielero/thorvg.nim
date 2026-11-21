@@ -641,7 +641,7 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     return gs
   of "tm":
     let tm = LottieTrimpathObj(objType: otTrimpath, name: nm, hidden: hd,
-      start: newScalarProp(0.0'f32), `end`: newScalarProp(100.0'f32), offset: newScalarProp(0.0'f32))
+      start: newScalarProp(0.0'f32), `end`: newScalarProp(100.0'f32), offset: newScalarProp(0.0'f32), mode: 1)
     if j.hasKey("s"):
       tm.start = parseScalarProp(j["s"], 0.0'f32)
       if tm.start.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: tm.start.sid, apply: proc(ov: JsonNode) = tm.start = parseScalarProp(ov, 0.0'f32)))
@@ -651,6 +651,8 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     if j.hasKey("o"):
       tm.offset = parseScalarProp(j["o"], 0.0'f32)
       if tm.offset.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: tm.offset.sid, apply: proc(ov: JsonNode) = tm.offset = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("m"):
+      tm.mode = asInt(j["m"], 1)
     return tm
   of "rd":
     let rd = LottieRoundedCornerObj(objType: otRoundedCorner, name: nm, hidden: hd,
