@@ -59,3 +59,4 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **Blend mode de capa (`bm`)**: parseado en `LottieLayer.blendMode`, aplicado con `Paint.blend` en escena final. Mejora: test10 11815/16556/15993/16378/15253. Sin regresiones phase2.
 - **Stroke dashes (`d`)**: parseados en st/gs (`n=="o"` offset, resto valores) y aplicados con `Shape.strokeDash`. Mejora pequeña test10: 11760/16452/15889/16269/15160. Sin regresiones.
 - **Stroke lc/lj/ml**: parseados y aplicados en st/gs. Mejora: test10 10988/15423/15146/15260/14076; slot 225/368/pass/pass/pass. test11 sube levemente por cap/join/miter correctos.
+- **Trimpath múltiple**: composición de trimpaths sucesivos en rango existente (C++ `updateTrimpath`). Mejora test10: 9612/14180/14134/14372/13351. Sin regresiones.

@@ -438,9 +438,22 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
     elif child of LottieTrimpathObj:
       let tm = LottieTrimpathObj(child)
       if not tm.hidden:
-        local.trimStart = tm.start.eval(frameNo)
-        local.trimEnd = tm.`end`.eval(frameNo)
-        local.trimOffset = tm.offset.eval(frameNo)
+        let off = tm.offset.eval(frameNo) / 360.0'f32 * 100.0'f32
+        var nb = normTrim(tm.start.eval(frameNo) + off)
+        var ne = normTrim(tm.`end`.eval(frameNo) + off)
+        if local.hasTrim:
+          # compose into existing trim range (C++ LottieBuilder::updateTrimpath)
+          let curOff = local.trimOffset / 360.0'f32 * 100.0'f32
+          let cb = normTrim(local.trimStart + curOff)
+          let ce = normTrim(local.trimEnd + curOff)
+          let len = abs(cb - ce)
+          local.trimStart = (len * nb + cb) * 100.0'f32
+          local.trimEnd = (len * ne + cb) * 100.0'f32
+          local.trimOffset = 0.0'f32
+        else:
+          local.trimStart = tm.start.eval(frameNo)
+          local.trimEnd = tm.`end`.eval(frameNo)
+          local.trimOffset = tm.offset.eval(frameNo)
         local.trimSimultaneous = (tm.mode != 2)
         local.hasTrim = true
     elif child of LottieRoundedCornerObj:
