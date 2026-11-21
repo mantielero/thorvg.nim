@@ -1,0 +1,46 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# OpenCode local state
+.opencode/
+
+#  Migration status
+migration/
+
+
+# Nim
+nimcache/
+nimblecache/
+htmldocs/
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Nimble / build outputs
+/build/
+/out/
+/dist/
+
+# Examples build outputs
+examples/build/
+examples/out/
+
+# Test/build artifacts
+tests/**/build/
+tests/**/out/
+
+# Upstream reference source (kept local, not tracked here)
+/upstream/

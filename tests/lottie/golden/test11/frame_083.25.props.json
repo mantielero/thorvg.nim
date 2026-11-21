@@ -1,0 +1,86 @@
+{
+  "frame": 83.25,
+  "layers": [
+    {
+      "name": "Shape Layer from test28",
+      "id": 6313344571690222801,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer from test30",
+      "id": 6313344571690222826,
+      "type": 4,
+      "pos": [300, 300],
+      "scale": [200, 200],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "B",
+      "id": 177639,
+      "type": 4,
+      "pos": [0, 0],
+      "scale": [100, 100],
+      "rotation": 349.032,
+      "opacity": 255
+    },
+    {
+      "name": "B",
+      "id": 177639,
+      "type": 4,
+      "pos": [540, 540],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "pointer 2",
+      "id": 249902586029674232,
+      "type": 4,
+      "pos": [342.006, 475.057],
+      "scale": [100, 100],
+      "rotation": -5.71868,
+      "opacity": 255
+    },
+    {
+      "name": "pointer",
+      "id": 229478958704934,
+      "type": 4,
+      "pos": [359.156, 477.987],
+      "scale": [100, 100],
+      "rotation": 15.2694,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer 2",
+      "id": 5939896329375450565,
+      "type": 4,
+      "pos": [87.813, 251.5],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer 1",
+      "id": 5939896329375450564,
+      "type": 4,
+      "pos": [312, 442],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Round Join Test",
+      "id": 16345194934268785981,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

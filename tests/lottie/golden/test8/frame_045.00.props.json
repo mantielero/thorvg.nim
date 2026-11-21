@@ -1,0 +1,32 @@
+{
+  "frame": 45,
+  "layers": [
+    {
+      "name": "Range selector (Shape) Triangle",
+      "id": 6827600861710162635,
+      "type": 5,
+      "pos": [256, 234.319],
+      "scale": [362.31, 362.31],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "text",
+      "id": 6385723658,
+      "type": 5,
+      "pos": [9.982, 27.699],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Container",
+      "id": 249839304311614824,
+      "type": 4,
+      "pos": [256, 256],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

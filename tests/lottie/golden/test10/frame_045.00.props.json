@@ -1,0 +1,167 @@
+{
+  "frame": 45,
+  "layers": [
+    {
+      "name": "Mask Layer - Alpha Matte",
+      "id": 12236752623146626556,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Content with Alpha Matte",
+      "id": 7619060524424971165,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 180,
+      "opacity": 255
+    },
+    {
+      "name": "Mask Layer - Inverted Matte",
+      "id": 1483364125851060919,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Content with Inverted Matte",
+      "id": 2392099456847612088,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Layer with Tint Effect",
+      "id": 18345170499635837354,
+      "type": 4,
+      "pos": [100, 250],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Layer with Fill Effect",
+      "id": 18323725240077354770,
+      "type": 4,
+      "pos": [220, 250],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Layer with Stroke Effect",
+      "id": 17407661017652686371,
+      "type": 4,
+      "pos": [340, 250],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Multiply Blend Mode",
+      "id": 10000291309294124591,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Screen Blend Mode",
+      "id": 4119982259386559599,
+      "type": 4,
+      "pos": [120, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Overlay Blend Mode",
+      "id": 17032928037698849713,
+      "type": 4,
+      "pos": [110, 120],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "3D Layer with Rotation",
+      "id": 14013775913681147653,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Layer with Multiple Masks",
+      "id": 5775237359505789225,
+      "type": 4,
+      "pos": [100, 280],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Time Remapping Layer",
+      "id": 10357696550915148948,
+      "type": 4,
+      "pos": [280, 280],
+      "scale": [100, 100],
+      "rotation": 180,
+      "opacity": 255
+    },
+    {
+      "name": "TrimPath - Simultaneous Mode",
+      "id": 8934139065753429385,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Radial Gradient with Zero Stop",
+      "id": 817752598205034466,
+      "type": 4,
+      "pos": [250, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Multiple Strokes with Dashes",
+      "id": 15959222778964367504,
+      "type": 4,
+      "pos": [100, 250],
+      "scale": [100, 100],
+      "rotation": 180,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Stroke with Opacity Zero",
+      "id": 1537132263092718976,
+      "type": 4,
+      "pos": [280, 250],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Path with Multiple TrimPaths",
+      "id": 16311059600036470326,
+      "type": 4,
+      "pos": [200, 320],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

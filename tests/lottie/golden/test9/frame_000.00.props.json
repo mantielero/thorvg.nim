@@ -1,0 +1,23 @@
+{
+  "frame": 0,
+  "layers": [
+    {
+      "name": "RoundedCorner+TrimPath+Repeater",
+      "id": 16607009063397381750,
+      "type": 4,
+      "pos": [200, 200],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "OffsetPath+RoundedCorner",
+      "id": 17929089985194722238,
+      "type": 4,
+      "pos": [200, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+
+void main() {
+    getFragData();
+    vec3 Rc = d.Sc;
+    if (d.Da > 0.0) {
+        vec3 Dc = min(One, d.Dc / d.Da);
+        Rc.r = Dc.r > 0.0 ? d.Sc.r < 1.0 ? min(1.0, Dc.r / (1.0 - d.Sc.r)) : 1.0 : 0.0;
+        Rc.g = Dc.g > 0.0 ? d.Sc.g < 1.0 ? min(1.0, Dc.g / (1.0 - d.Sc.g)) : 1.0 : 0.0;
+        Rc.b = Dc.b > 0.0 ? d.Sc.b < 1.0 ? min(1.0, Dc.b / (1.0 - d.Sc.b)) : 1.0 : 0.0;
+        Rc = mix(d.Sc, Rc, d.Da);
+    }
+    FragColor = postProcess(vec4(Rc, 1.0));
+}

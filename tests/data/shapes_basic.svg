@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150">
+  <rect x="10" y="10" width="50" height="40" fill="#e0402a"/>
+  <rect x="70" y="10" width="50" height="40" rx="10" ry="6" fill="rgb(40,120,220)" stroke="black" stroke-width="2"/>
+  <circle cx="155" cy="30" r="22" fill="green" fill-opacity="0.6"/>
+  <ellipse cx="35" cy="85" rx="25" ry="14" fill="#fa0" stroke="#630" stroke-width="3"/>
+  <line x1="70" y1="70" x2="120" y2="100" stroke="purple" stroke-width="4" stroke-linecap="round"/>
+  <polyline points="130,70 150,100 170,70 190,100" fill="none" stroke="navy" stroke-width="3" stroke-linejoin="round"/>
+  <polygon points="20,110 50,140 80,110 65,145 35,145" fill="#a3c" fill-rule="evenodd"/>
+  <polygon points="100,115 125,145 150,115" fill="teal" opacity="0.5"/>
+</svg>

@@ -1,0 +1,131 @@
+{
+  "frame": 0,
+  "layers": [
+    {
+      "name": "GradientFillShape",
+      "id": 11856050486144141259,
+      "type": 4,
+      "pos": [275, 275],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "IconNull",
+      "id": 7571128253835177,
+      "type": 3,
+      "pos": [400, 400],
+      "scale": [20, 20],
+      "rotation": 0,
+      "opacity": 0
+    },
+    {
+      "name": ".lottie-icon-gradient",
+      "id": 17022795254023338613,
+      "type": 4,
+      "pos": [0.125, 0.125],
+      "scale": [1000, 1000],
+      "rotation": 0,
+      "opacity": 51
+    },
+    {
+      "name": ".lottie-icon-solid",
+      "id": 4774749963139231042,
+      "type": 4,
+      "pos": [0.125, 0.125],
+      "scale": [0, 0],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": ".lottie-icon-outline",
+      "id": 16167625141317145479,
+      "type": 4,
+      "pos": [0.125, 0.125],
+      "scale": [1000, 1000],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Anchor",
+      "id": 6952067067840,
+      "type": 4,
+      "pos": [256, 256],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Transformed",
+      "id": 13846742924725495562,
+      "type": 4,
+      "pos": [256, 256],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Reference",
+      "id": 249859963357700852,
+      "type": 4,
+      "pos": [256, 256],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "ExpressionLayer",
+      "id": 5035004042290177234,
+      "type": 4,
+      "pos": [256, 256],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "TextLayer",
+      "id": 249862799963194983,
+      "type": 5,
+      "pos": [5, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "img_0.png",
+      "id": 249892652679875044,
+      "type": 2,
+      "pos": [400, 400],
+      "scale": [99, 99],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "TimeRemapLayer",
+      "id": 13506023958911260166,
+      "type": 0,
+      "pos": [400, 400],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "TrimpathShape",
+      "id": 8125338599475901087,
+      "type": 4,
+      "pos": [400, 600],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "GradientStrokeShape",
+      "id": 16985301538298083292,
+      "type": 4,
+      "pos": [400, 600],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

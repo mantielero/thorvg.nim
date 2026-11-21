@@ -1,0 +1,32 @@
+{
+  "frame": 57,
+  "layers": [
+    {
+      "name": "bell",
+      "id": 6385076388,
+      "type": 4,
+      "pos": [487.763, 247.222],
+      "scale": [100, 100],
+      "rotation": 1.44485,
+      "opacity": 255
+    },
+    {
+      "name": "ball",
+      "id": 6385072032,
+      "type": 4,
+      "pos": [488.425, 359.719],
+      "scale": [100, 100],
+      "rotation": 2.62177,
+      "opacity": 255
+    },
+    {
+      "name": "bleep.mp3",
+      "id": 249882762928876491,
+      "type": 6,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

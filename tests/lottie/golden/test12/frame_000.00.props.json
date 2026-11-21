@@ -1,0 +1,41 @@
+{
+  "frame": 0,
+  "layers": [
+    {
+      "name": "Multiple Effects Layer",
+      "id": 707715552463973998,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Drop Shadow Effect",
+      "id": 18403388734562827725,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gaussian Blur Effect",
+      "id": 15219391757853995810,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Custom Effect with Various Properties",
+      "id": 18398897970529614335,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

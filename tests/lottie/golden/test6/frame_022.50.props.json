@@ -1,0 +1,140 @@
+{
+  "frame": 22.5,
+  "layers": [
+    {
+      "name": "Trim Path Animation",
+      "id": 9285260957527699150,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Repeated Circles",
+      "id": 16075339827746506420,
+      "type": 4,
+      "pos": [150, 150],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Rounded Rectangle",
+      "id": 2332779541598441931,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Overlay Circle",
+      "id": 17858009891399653785,
+      "type": 4,
+      "pos": [200, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 204
+    },
+    {
+      "name": "Star with OffsetPath",
+      "id": 17018130526009838959,
+      "type": 4,
+      "pos": [150, 150],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Rectangle with Multiple Offsets",
+      "id": 16532380159335317340,
+      "type": 4,
+      "pos": [80, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Star with RoundedCorner",
+      "id": 2684980558912433621,
+      "type": 4,
+      "pos": [120, 120],
+      "scale": [100, 100],
+      "rotation": 90,
+      "opacity": 255
+    },
+    {
+      "name": "Polygon with RoundedCorner",
+      "id": 3166237085719137891,
+      "type": 4,
+      "pos": [280, 120],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Star with OffsetPath",
+      "id": 17018130526009838959,
+      "type": 4,
+      "pos": [120, 280],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Polygon with OffsetPath and RoundedCorner",
+      "id": 8689671940148053290,
+      "type": 4,
+      "pos": [280, 280],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Rectangle with Animated RoundedCorner",
+      "id": 940031566221639603,
+      "type": 4,
+      "pos": [100, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Ellipse with OffsetPath",
+      "id": 15674340482108743491,
+      "type": 4,
+      "pos": [220, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Path with OffsetPath",
+      "id": 11576637088111714274,
+      "type": 4,
+      "pos": [150, 200],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Round Corner Test",
+      "id": 17245288057683285142,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Round Corner with Path",
+      "id": 6012447646256044191,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

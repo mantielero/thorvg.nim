@@ -1,0 +1,158 @@
+{
+  "frame": 212,
+  "layers": [
+    {
+      "name": "Null 8",
+      "id": 6952584454520,
+      "type": 3,
+      "pos": [508, 552],
+      "scale": [84, 84],
+      "rotation": 0,
+      "opacity": 0
+    },
+    {
+      "name": "Shape Layer 7",
+      "id": 5939896329375450570,
+      "type": 4,
+      "pos": [-4.36239, 284.421],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 76
+    },
+    {
+      "name": "Shape Layer 6",
+      "id": 5939896329375450569,
+      "type": 4,
+      "pos": [227.323, 551.138],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 76
+    },
+    {
+      "name": "Shape Layer 5",
+      "id": 5939896329375450568,
+      "type": 4,
+      "pos": [227.323, 551.138],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 76
+    },
+    {
+      "name": "square_17",
+      "id": 249906905478878461,
+      "type": 4,
+      "pos": [-4, 140],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "brilho Branco 2",
+      "id": 3024526154455637260,
+      "type": 4,
+      "pos": [108.25, -250.25],
+      "scale": [0, 0],
+      "rotation": 130,
+      "opacity": 255
+    },
+    {
+      "name": "brilho Branco",
+      "id": 13028990559079064122,
+      "type": 4,
+      "pos": [108.25, -250.25],
+      "scale": [186.667, 186.667],
+      "rotation": 27.3684,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer 4",
+      "id": 5939896329375450567,
+      "type": 4,
+      "pos": [-24.3255, -33.4687],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 76
+    },
+    {
+      "name": "Shape Layer 3",
+      "id": 5939896329375450566,
+      "type": 4,
+      "pos": [281.323, 265.138],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 51
+    },
+    {
+      "name": "Shape Layer 2",
+      "id": 5939896329375450565,
+      "type": 4,
+      "pos": [281.323, 265.138],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 76
+    },
+    {
+      "name": "square_16",
+      "id": 249906905478878460,
+      "type": 4,
+      "pos": [-4, -260],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "thesims_cristal_ref Outlines 2",
+      "id": 7441292861749650548,
+      "type": 4,
+      "pos": [-2, -61],
+      "scale": [120, 120],
+      "rotation": 0,
+      "opacity": 12
+    },
+    {
+      "name": "square_15",
+      "id": 249906905478878459,
+      "type": 4,
+      "pos": [-4, 140],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "thesims_cristal_ref Outlines",
+      "id": 2090349691393961890,
+      "type": 4,
+      "pos": [-2, -61],
+      "scale": [120, 120],
+      "rotation": 0,
+      "opacity": 12
+    },
+    {
+      "name": "square_14",
+      "id": 249906905478878458,
+      "type": 4,
+      "pos": [-4, -260],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "square_5",
+      "id": 7572936529662986,
+      "type": 4,
+      "pos": [-3.5, 140],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "square_4",
+      "id": 7572936529662985,
+      "type": 4,
+      "pos": [-4, -260],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

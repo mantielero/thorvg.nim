@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="140" viewBox="0 0 240 140">
+  <defs>
+    <clipPath id="c1">
+      <circle cx="45" cy="45" r="30"/>
+    </clipPath>
+    <clipPath id="c2" clipPathUnits="objectBoundingBox">
+      <path d="M 0.5 0 L 1 1 L 0 1 Z"/>
+    </clipPath>
+    <clipPath id="c3">
+      <rect x="130" y="15" width="30" height="60"/>
+      <rect x="170" y="15" width="30" height="60" transform="rotate(10 185 45)"/>
+    </clipPath>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="white"/>
+      <stop offset="1" stop-color="black"/>
+    </linearGradient>
+    <mask id="m1">
+      <rect x="10" y="85" width="100" height="45" fill="url(#g)"/>
+    </mask>
+  </defs>
+  <rect x="10" y="10" width="70" height="70" fill="#d33" clip-path="url(#c1)"/>
+  <rect x="90" y="10" width="30" height="70" fill="#33d" clip-path="url(#c2)"/>
+  <rect x="120" y="10" width="90" height="70" fill="#3a3" clip-path="url(#c3)"/>
+  <rect x="10" y="85" width="100" height="45" fill="#fa0" mask="url(#m1)"/>
+  <g clip-path="url(#c1)" transform="translate(130 70) scale(0.8)">
+    <rect x="0" y="0" width="80" height="80" fill="#909"/>
+    <circle cx="45" cy="45" r="12" fill="yellow"/>
+  </g>
+</svg>

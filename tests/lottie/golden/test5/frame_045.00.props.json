@@ -1,0 +1,158 @@
+{
+  "frame": 45,
+  "layers": [
+    {
+      "name": "Rectangle Shape",
+      "id": 8071028663373403307,
+      "type": 4,
+      "pos": [75, 75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Ellipse Shape",
+      "id": 1254897145768708676,
+      "type": 4,
+      "pos": [225, 75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Polystar Shape",
+      "id": 6247771541357658612,
+      "type": 4,
+      "pos": [150, 225],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Custom Path with Stroke",
+      "id": 1280760776872422305,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Grouped Shapes",
+      "id": 14095683832331146175,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 270,
+      "opacity": 255
+    },
+    {
+      "name": "Expression Driven Position",
+      "id": 9856169717109909426,
+      "type": 4,
+      "pos": [150, 150],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Expression Driven Rotation",
+      "id": 9856169802376443405,
+      "type": 4,
+      "pos": [150, 150],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Expression Driven Scale",
+      "id": 877517371839563397,
+      "type": 4,
+      "pos": [150, 220],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Expression with Variables",
+      "id": 3505706731637870762,
+      "type": 4,
+      "pos": [80, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Star with 5.3 Points",
+      "id": 17016842786973473166,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Star with 6.7 Points and Roundness",
+      "id": 4373054959047628007,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 180,
+      "opacity": 255
+    },
+    {
+      "name": "Star with 8.25 Points",
+      "id": 8158083921175813381,
+      "type": 4,
+      "pos": [100, 300],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Polygon with 5.5 Points",
+      "id": 7576611661951696542,
+      "type": 4,
+      "pos": [300, 300],
+      "scale": [100, 100],
+      "rotation": 90,
+      "opacity": 255
+    },
+    {
+      "name": "Mergeable Group with Non-Uniform Scale",
+      "id": 9892754473366935314,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Nested Groups with Transforms",
+      "id": 17677169508724279187,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Group with Skew Transform",
+      "id": 8223296553186665252,
+      "type": 4,
+      "pos": [100, 300],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Multiple Shapes with Individual Transforms",
+      "id": 2271909068225500937,
+      "type": 4,
+      "pos": [300, 300],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "frame": 0,
+  "layers": [
+    {
+      "name": "Shape Layer 2",
+      "id": 5939896329375450565,
+      "type": 4,
+      "pos": [98, 45.5],
+      "scale": [-100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer 1",
+      "id": 5939896329375450564,
+      "type": 4,
+      "pos": [75, 60],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Shape Layer 3",
+      "id": 5939896329375450566,
+      "type": 4,
+      "pos": [75.5, 103],
+      "scale": [91.956, 91.956],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "precomp_cycle_self",
+      "id": 18245502142756673907,
+      "type": 0,
+      "pos": [5, 90],
+      "scale": [25, 25],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "precomp_cycle_ab",
+      "id": 15414449830252285068,
+      "type": 0,
+      "pos": [5, 90],
+      "scale": [25, 25],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "precomp_shared",
+      "id": 1267652444393597873,
+      "type": 0,
+      "pos": [5, 90],
+      "scale": [25, 25],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "cases": [
+    {
+      "name": "test",
+      "file": "upstream/test/res/test.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 120,
+      "duration": 4.004,
+      "frames": [
+        {"frame": 0, "ppm": "test/frame_000.00.ppm", "rgba": "test/frame_000.00.rgba", "props": "test/frame_000.00.props.json"},
+        {"frame": 30, "ppm": "test/frame_030.00.ppm", "rgba": "test/frame_030.00.rgba", "props": "test/frame_030.00.props.json"},
+        {"frame": 60, "ppm": "test/frame_060.00.ppm", "rgba": "test/frame_060.00.rgba", "props": "test/frame_060.00.props.json"},
+        {"frame": 90, "ppm": "test/frame_090.00.ppm", "rgba": "test/frame_090.00.rgba", "props": "test/frame_090.00.props.json"},
+        {"frame": 119, "ppm": "test/frame_119.00.ppm", "rgba": "test/frame_119.00.rgba", "props": "test/frame_119.00.props.json"}
+      ]
+    },
+    {
+      "name": "test2",
+      "file": "upstream/test/res/test2.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 90,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test2/frame_000.00.ppm", "rgba": "test2/frame_000.00.rgba", "props": "test2/frame_000.00.props.json"},
+        {"frame": 22.5, "ppm": "test2/frame_022.50.ppm", "rgba": "test2/frame_022.50.rgba", "props": "test2/frame_022.50.props.json"},
+        {"frame": 45, "ppm": "test2/frame_045.00.ppm", "rgba": "test2/frame_045.00.rgba", "props": "test2/frame_045.00.props.json"},
+        {"frame": 67.5, "ppm": "test2/frame_067.50.ppm", "rgba": "test2/frame_067.50.rgba", "props": "test2/frame_067.50.props.json"},
+        {"frame": 89, "ppm": "test2/frame_089.00.ppm", "rgba": "test2/frame_089.00.rgba", "props": "test2/frame_089.00.props.json"}
+      ]
+    },
+    {
+      "name": "test3",
+      "file": "upstream/test/res/test3.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 360,
+      "duration": 6.003,
+      "frames": [
+        {"frame": 0, "ppm": "test3/frame_000.00.ppm", "rgba": "test3/frame_000.00.rgba", "props": "test3/frame_000.00.props.json"},
+        {"frame": 90, "ppm": "test3/frame_090.00.ppm", "rgba": "test3/frame_090.00.rgba", "props": "test3/frame_090.00.props.json"},
+        {"frame": 180, "ppm": "test3/frame_180.00.ppm", "rgba": "test3/frame_180.00.rgba", "props": "test3/frame_180.00.props.json"},
+        {"frame": 270, "ppm": "test3/frame_270.00.ppm", "rgba": "test3/frame_270.00.rgba", "props": "test3/frame_270.00.props.json"},
+        {"frame": 359, "ppm": "test3/frame_359.00.ppm", "rgba": "test3/frame_359.00.rgba", "props": "test3/frame_359.00.props.json"}
+      ]
+    },
+    {
+      "name": "test4",
+      "file": "upstream/test/res/test4.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 150,
+      "duration": 5,
+      "frames": [
+        {"frame": 0, "ppm": "test4/frame_000.00.ppm", "rgba": "test4/frame_000.00.rgba", "props": "test4/frame_000.00.props.json"},
+        {"frame": 37.5, "ppm": "test4/frame_037.50.ppm", "rgba": "test4/frame_037.50.rgba", "props": "test4/frame_037.50.props.json"},
+        {"frame": 75, "ppm": "test4/frame_075.00.ppm", "rgba": "test4/frame_075.00.rgba", "props": "test4/frame_075.00.props.json"},
+        {"frame": 112.5, "ppm": "test4/frame_112.50.ppm", "rgba": "test4/frame_112.50.rgba", "props": "test4/frame_112.50.props.json"},
+        {"frame": 149, "ppm": "test4/frame_149.00.ppm", "rgba": "test4/frame_149.00.rgba", "props": "test4/frame_149.00.props.json"}
+      ]
+    },
+    {
+      "name": "test5",
+      "file": "upstream/test/res/test5.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 90,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test5/frame_000.00.ppm", "rgba": "test5/frame_000.00.rgba", "props": "test5/frame_000.00.props.json"},
+        {"frame": 22.5, "ppm": "test5/frame_022.50.ppm", "rgba": "test5/frame_022.50.rgba", "props": "test5/frame_022.50.props.json"},
+        {"frame": 45, "ppm": "test5/frame_045.00.ppm", "rgba": "test5/frame_045.00.rgba", "props": "test5/frame_045.00.props.json"},
+        {"frame": 67.5, "ppm": "test5/frame_067.50.ppm", "rgba": "test5/frame_067.50.rgba", "props": "test5/frame_067.50.props.json"},
+        {"frame": 89, "ppm": "test5/frame_089.00.ppm", "rgba": "test5/frame_089.00.rgba", "props": "test5/frame_089.00.props.json"}
+      ]
+    },
+    {
+      "name": "test6",
+      "file": "upstream/test/res/test6.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 90,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test6/frame_000.00.ppm", "rgba": "test6/frame_000.00.rgba", "props": "test6/frame_000.00.props.json"},
+        {"frame": 22.5, "ppm": "test6/frame_022.50.ppm", "rgba": "test6/frame_022.50.rgba", "props": "test6/frame_022.50.props.json"},
+        {"frame": 45, "ppm": "test6/frame_045.00.ppm", "rgba": "test6/frame_045.00.rgba", "props": "test6/frame_045.00.props.json"},
+        {"frame": 67.5, "ppm": "test6/frame_067.50.ppm", "rgba": "test6/frame_067.50.rgba", "props": "test6/frame_067.50.props.json"},
+        {"frame": 89, "ppm": "test6/frame_089.00.ppm", "rgba": "test6/frame_089.00.rgba", "props": "test6/frame_089.00.props.json"}
+      ]
+    },
+    {
+      "name": "test7",
+      "file": "upstream/test/res/test7.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 90,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test7/frame_000.00.ppm", "rgba": "test7/frame_000.00.rgba", "props": "test7/frame_000.00.props.json"},
+        {"frame": 22.5, "ppm": "test7/frame_022.50.ppm", "rgba": "test7/frame_022.50.rgba", "props": "test7/frame_022.50.props.json"},
+        {"frame": 45, "ppm": "test7/frame_045.00.ppm", "rgba": "test7/frame_045.00.rgba", "props": "test7/frame_045.00.props.json"},
+        {"frame": 67.5, "ppm": "test7/frame_067.50.ppm", "rgba": "test7/frame_067.50.rgba", "props": "test7/frame_067.50.props.json"},
+        {"frame": 89, "ppm": "test7/frame_089.00.ppm", "rgba": "test7/frame_089.00.rgba", "props": "test7/frame_089.00.props.json"}
+      ]
+    },
+    {
+      "name": "test8",
+      "file": "upstream/test/res/test8.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 180,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test8/frame_000.00.ppm", "rgba": "test8/frame_000.00.rgba", "props": "test8/frame_000.00.props.json"},
+        {"frame": 45, "ppm": "test8/frame_045.00.ppm", "rgba": "test8/frame_045.00.rgba", "props": "test8/frame_045.00.props.json"},
+        {"frame": 90, "ppm": "test8/frame_090.00.ppm", "rgba": "test8/frame_090.00.rgba", "props": "test8/frame_090.00.props.json"},
+        {"frame": 135, "ppm": "test8/frame_135.00.ppm", "rgba": "test8/frame_135.00.rgba", "props": "test8/frame_135.00.props.json"},
+        {"frame": 179, "ppm": "test8/frame_179.00.ppm", "rgba": "test8/frame_179.00.rgba", "props": "test8/frame_179.00.props.json"}
+      ]
+    },
+    {
+      "name": "test9",
+      "file": "upstream/test/res/test9.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 60,
+      "duration": 2,
+      "frames": [
+        {"frame": 0, "ppm": "test9/frame_000.00.ppm", "rgba": "test9/frame_000.00.rgba", "props": "test9/frame_000.00.props.json"},
+        {"frame": 15, "ppm": "test9/frame_015.00.ppm", "rgba": "test9/frame_015.00.rgba", "props": "test9/frame_015.00.props.json"},
+        {"frame": 30, "ppm": "test9/frame_030.00.ppm", "rgba": "test9/frame_030.00.rgba", "props": "test9/frame_030.00.props.json"},
+        {"frame": 45, "ppm": "test9/frame_045.00.ppm", "rgba": "test9/frame_045.00.rgba", "props": "test9/frame_045.00.props.json"},
+        {"frame": 59, "ppm": "test9/frame_059.00.ppm", "rgba": "test9/frame_059.00.rgba", "props": "test9/frame_059.00.props.json"}
+      ]
+    },
+    {
+      "name": "test10",
+      "file": "upstream/test/res/test10.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 90,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "test10/frame_000.00.ppm", "rgba": "test10/frame_000.00.rgba", "props": "test10/frame_000.00.props.json"},
+        {"frame": 22.5, "ppm": "test10/frame_022.50.ppm", "rgba": "test10/frame_022.50.rgba", "props": "test10/frame_022.50.props.json"},
+        {"frame": 45, "ppm": "test10/frame_045.00.ppm", "rgba": "test10/frame_045.00.rgba", "props": "test10/frame_045.00.props.json"},
+        {"frame": 67.5, "ppm": "test10/frame_067.50.ppm", "rgba": "test10/frame_067.50.rgba", "props": "test10/frame_067.50.props.json"},
+        {"frame": 89, "ppm": "test10/frame_089.00.ppm", "rgba": "test10/frame_089.00.rgba", "props": "test10/frame_089.00.props.json"}
+      ]
+    },
+    {
+      "name": "test11",
+      "file": "upstream/test/res/test11.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 111,
+      "duration": 3.7,
+      "frames": [
+        {"frame": 0, "ppm": "test11/frame_000.00.ppm", "rgba": "test11/frame_000.00.rgba", "props": "test11/frame_000.00.props.json"},
+        {"frame": 27.75, "ppm": "test11/frame_027.75.ppm", "rgba": "test11/frame_027.75.rgba", "props": "test11/frame_027.75.props.json"},
+        {"frame": 55.5, "ppm": "test11/frame_055.50.ppm", "rgba": "test11/frame_055.50.rgba", "props": "test11/frame_055.50.props.json"},
+        {"frame": 83.25, "ppm": "test11/frame_083.25.ppm", "rgba": "test11/frame_083.25.rgba", "props": "test11/frame_083.25.props.json"},
+        {"frame": 110, "ppm": "test11/frame_110.00.ppm", "rgba": "test11/frame_110.00.rgba", "props": "test11/frame_110.00.props.json"}
+      ]
+    },
+    {
+      "name": "test12",
+      "file": "upstream/test/res/test12.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 60,
+      "duration": 2,
+      "frames": [
+        {"frame": 0, "ppm": "test12/frame_000.00.ppm", "rgba": "test12/frame_000.00.rgba", "props": "test12/frame_000.00.props.json"},
+        {"frame": 15, "ppm": "test12/frame_015.00.ppm", "rgba": "test12/frame_015.00.rgba", "props": "test12/frame_015.00.props.json"},
+        {"frame": 30, "ppm": "test12/frame_030.00.ppm", "rgba": "test12/frame_030.00.rgba", "props": "test12/frame_030.00.props.json"},
+        {"frame": 45, "ppm": "test12/frame_045.00.ppm", "rgba": "test12/frame_045.00.rgba", "props": "test12/frame_045.00.props.json"},
+        {"frame": 59, "ppm": "test12/frame_059.00.ppm", "rgba": "test12/frame_059.00.rgba", "props": "test12/frame_059.00.props.json"}
+      ]
+    },
+    {
+      "name": "test13",
+      "file": "upstream/test/res/test13.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 213,
+      "duration": 3.55,
+      "frames": [
+        {"frame": 0, "ppm": "test13/frame_000.00.ppm", "rgba": "test13/frame_000.00.rgba", "props": "test13/frame_000.00.props.json"},
+        {"frame": 53.25, "ppm": "test13/frame_053.25.ppm", "rgba": "test13/frame_053.25.rgba", "props": "test13/frame_053.25.props.json"},
+        {"frame": 106.5, "ppm": "test13/frame_106.50.ppm", "rgba": "test13/frame_106.50.rgba", "props": "test13/frame_106.50.props.json"},
+        {"frame": 159.75, "ppm": "test13/frame_159.75.ppm", "rgba": "test13/frame_159.75.rgba", "props": "test13/frame_159.75.props.json"},
+        {"frame": 212, "ppm": "test13/frame_212.00.ppm", "rgba": "test13/frame_212.00.rgba", "props": "test13/frame_212.00.props.json"}
+      ]
+    },
+    {
+      "name": "test14",
+      "file": "upstream/test/res/test14.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 120,
+      "duration": 2,
+      "frames": [
+        {"frame": 0, "ppm": "test14/frame_000.00.ppm", "rgba": "test14/frame_000.00.rgba", "props": "test14/frame_000.00.props.json"},
+        {"frame": 30, "ppm": "test14/frame_030.00.ppm", "rgba": "test14/frame_030.00.rgba", "props": "test14/frame_030.00.props.json"},
+        {"frame": 60, "ppm": "test14/frame_060.00.ppm", "rgba": "test14/frame_060.00.rgba", "props": "test14/frame_060.00.props.json"},
+        {"frame": 90, "ppm": "test14/frame_090.00.ppm", "rgba": "test14/frame_090.00.rgba", "props": "test14/frame_090.00.props.json"},
+        {"frame": 119, "ppm": "test14/frame_119.00.ppm", "rgba": "test14/frame_119.00.rgba", "props": "test14/frame_119.00.props.json"}
+      ]
+    },
+    {
+      "name": "embedded_font",
+      "file": "upstream/test/res/embedded_font.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 30,
+      "duration": 1,
+      "frames": [
+        {"frame": 0, "ppm": "embedded_font/frame_000.00.ppm", "rgba": "embedded_font/frame_000.00.rgba", "props": "embedded_font/frame_000.00.props.json"},
+        {"frame": 7.5, "ppm": "embedded_font/frame_007.50.ppm", "rgba": "embedded_font/frame_007.50.rgba", "props": "embedded_font/frame_007.50.props.json"},
+        {"frame": 15, "ppm": "embedded_font/frame_015.00.ppm", "rgba": "embedded_font/frame_015.00.rgba", "props": "embedded_font/frame_015.00.props.json"},
+        {"frame": 22.5, "ppm": "embedded_font/frame_022.50.ppm", "rgba": "embedded_font/frame_022.50.rgba", "props": "embedded_font/frame_022.50.props.json"},
+        {"frame": 29, "ppm": "embedded_font/frame_029.00.ppm", "rgba": "embedded_font/frame_029.00.rgba", "props": "embedded_font/frame_029.00.props.json"}
+      ]
+    },
+    {
+      "name": "segment",
+      "file": "upstream/test/res/segment.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 120,
+      "duration": 2,
+      "frames": [
+        {"frame": 0, "ppm": "segment/frame_000.00.ppm", "rgba": "segment/frame_000.00.rgba", "props": "segment/frame_000.00.props.json"},
+        {"frame": 30, "ppm": "segment/frame_030.00.ppm", "rgba": "segment/frame_030.00.rgba", "props": "segment/frame_030.00.props.json"},
+        {"frame": 60, "ppm": "segment/frame_060.00.ppm", "rgba": "segment/frame_060.00.rgba", "props": "segment/frame_060.00.props.json"},
+        {"frame": 90, "ppm": "segment/frame_090.00.ppm", "rgba": "segment/frame_090.00.rgba", "props": "segment/frame_090.00.props.json"},
+        {"frame": 119, "ppm": "segment/frame_119.00.ppm", "rgba": "segment/frame_119.00.rgba", "props": "segment/frame_119.00.props.json"}
+      ]
+    },
+    {
+      "name": "slot",
+      "file": "upstream/test/res/slot.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 180,
+      "duration": 3,
+      "frames": [
+        {"frame": 0, "ppm": "slot/frame_000.00.ppm", "rgba": "slot/frame_000.00.rgba", "props": "slot/frame_000.00.props.json"},
+        {"frame": 45, "ppm": "slot/frame_045.00.ppm", "rgba": "slot/frame_045.00.rgba", "props": "slot/frame_045.00.props.json"},
+        {"frame": 90, "ppm": "slot/frame_090.00.ppm", "rgba": "slot/frame_090.00.rgba", "props": "slot/frame_090.00.props.json"},
+        {"frame": 135, "ppm": "slot/frame_135.00.ppm", "rgba": "slot/frame_135.00.rgba", "props": "slot/frame_135.00.props.json"},
+        {"frame": 179, "ppm": "slot/frame_179.00.ppm", "rgba": "slot/frame_179.00.rgba", "props": "slot/frame_179.00.props.json"}
+      ]
+    },
+    {
+      "name": "tween",
+      "file": "upstream/test/res/tween.lot",
+      "w": 500, "h": 500,
+      "totalFrame": 150,
+      "duration": 5,
+      "frames": [
+        {"frame": 0, "ppm": "tween/frame_000.00.ppm", "rgba": "tween/frame_000.00.rgba", "props": "tween/frame_000.00.props.json"},
+        {"frame": 37.5, "ppm": "tween/frame_037.50.ppm", "rgba": "tween/frame_037.50.rgba", "props": "tween/frame_037.50.props.json"},
+        {"frame": 75, "ppm": "tween/frame_075.00.ppm", "rgba": "tween/frame_075.00.rgba", "props": "tween/frame_075.00.props.json"},
+        {"frame": 112.5, "ppm": "tween/frame_112.50.ppm", "rgba": "tween/frame_112.50.rgba", "props": "tween/frame_112.50.props.json"},
+        {"frame": 149, "ppm": "tween/frame_149.00.ppm", "rgba": "tween/frame_149.00.rgba", "props": "tween/frame_149.00.props.json"}
+      ]
+    },
+    {
+      "name": "audio_layer",
+      "file": "upstream/test/res/audio_layer.json",
+      "w": 500, "h": 500,
+      "totalFrame": 114,
+      "duration": 1.9,
+      "frames": [
+        {"frame": 0, "ppm": "audio_layer/frame_000.00.ppm", "rgba": "audio_layer/frame_000.00.rgba", "props": "audio_layer/frame_000.00.props.json"},
+        {"frame": 28.5, "ppm": "audio_layer/frame_028.50.ppm", "rgba": "audio_layer/frame_028.50.rgba", "props": "audio_layer/frame_028.50.props.json"},
+        {"frame": 57, "ppm": "audio_layer/frame_057.00.ppm", "rgba": "audio_layer/frame_057.00.rgba", "props": "audio_layer/frame_057.00.props.json"},
+        {"frame": 85.5, "ppm": "audio_layer/frame_085.50.ppm", "rgba": "audio_layer/frame_085.50.rgba", "props": "audio_layer/frame_085.50.props.json"},
+        {"frame": 113, "ppm": "audio_layer/frame_113.00.ppm", "rgba": "audio_layer/frame_113.00.rgba", "props": "audio_layer/frame_113.00.props.json"}
+      ]
+    }
+  ]
+}

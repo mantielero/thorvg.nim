@@ -1,0 +1,50 @@
+{
+  "frame": 112.5,
+  "layers": [
+    {
+      "name": "Shape Layer with Skew",
+      "id": 5866769899019514217,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "3D Rotated Shape",
+      "id": 18382459064542409472,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Skew Test Shape",
+      "id": 18209165379251454960,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Rectangle 2",
+      "id": 13843079463042581292,
+      "type": 4,
+      "pos": [304.5, 352.283],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Rectangle 1",
+      "id": 13843079463042581291,
+      "type": 4,
+      "pos": [133, 210.855],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

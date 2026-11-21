@@ -1,0 +1,14 @@
+{
+  "frame": 30,
+  "layers": [
+    {
+      "name": "_square wheel",
+      "id": 8088524826757428394,
+      "type": 0,
+      "pos": [128, 128],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}

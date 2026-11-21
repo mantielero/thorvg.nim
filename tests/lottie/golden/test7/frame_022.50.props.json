@@ -1,0 +1,302 @@
+{
+  "frame": 22.5,
+  "layers": [
+    {
+      "name": "Linear Gradient",
+      "id": 10049165838657856942,
+      "type": 4,
+      "pos": [75, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Radial Gradient",
+      "id": 10382273681885993696,
+      "type": 4,
+      "pos": [225, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Stroke with Zero Opacity",
+      "id": 2077050778838599136,
+      "type": 4,
+      "pos": [150, 80],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Stroke Varying Opacity",
+      "id": 186900060150626788,
+      "type": 4,
+      "pos": [150, 180],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient with Many Color Stops",
+      "id": 4922866120540313404,
+      "type": 4,
+      "pos": [100, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Radial Gradient with Mismatched Stops",
+      "id": 5538195129172846164,
+      "type": 4,
+      "pos": [300, 100],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Linear Gradient with 3 Stops",
+      "id": 4844522030022085430,
+      "type": 4,
+      "pos": [200, 220],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 1 from test29",
+      "id": 6537131062541170912,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 2 from test29",
+      "id": 8205020577494155873,
+      "type": 4,
+      "pos": [235.235, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 3 from test29",
+      "id": 9872910092447140834,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 4 from test29",
+      "id": 11540799607400125795,
+      "type": 4,
+      "pos": [235.235, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 5 from test29",
+      "id": 13208689122353110756,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 6 from test29",
+      "id": 14876578637306095717,
+      "type": 4,
+      "pos": [215.375, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 7 from test29",
+      "id": 16544468152259080678,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 8 from test29",
+      "id": 18212357667212065639,
+      "type": 4,
+      "pos": [215.375, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 9 from test29",
+      "id": 1433503108455498984,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 10 from test29",
+      "id": 17494447235785435440,
+      "type": 4,
+      "pos": [195.51, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 11 from test29",
+      "id": 715592677028868785,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 12 from test29",
+      "id": 2383482191981853746,
+      "type": 4,
+      "pos": [195.51, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 13 from test29",
+      "id": 4051371706934838707,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 14 from test29",
+      "id": 5719261221887823668,
+      "type": 4,
+      "pos": [175.65, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 15 from test29",
+      "id": 7387150736840808629,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 16 from test29",
+      "id": 9055040251793793590,
+      "type": 4,
+      "pos": [175.65, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 17 from test29",
+      "id": 10722929766746778551,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 18 from test29",
+      "id": 12390819281699763512,
+      "type": 4,
+      "pos": [155.785, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 19 from test29",
+      "id": 14058708796652748473,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 20 from test29",
+      "id": 17194569008105284305,
+      "type": 4,
+      "pos": [155.785, 217.775],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 21 from test29",
+      "id": 415714449348717650,
+      "type": 4,
+      "pos": [205.69, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 22 from test29",
+      "id": 2083603964301702611,
+      "type": 4,
+      "pos": [295, 171.5],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 23 from test29",
+      "id": 3751493479254687572,
+      "type": 4,
+      "pos": [259.25, 220.25],
+      "scale": [100, 100],
+      "rotation": -45,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 24 from test29",
+      "id": 5419382994207672533,
+      "type": 4,
+      "pos": [130.5, 88.75],
+      "scale": [100, 100],
+      "rotation": -90,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer 25 from test29",
+      "id": 7087272509160657494,
+      "type": 4,
+      "pos": [205.25, 165.75],
+      "scale": [100, 100],
+      "rotation": 0,
+      "opacity": 255
+    },
+    {
+      "name": "Gradient Layer from test34",
+      "id": 16284830582176388907,
+      "type": 4,
+      "pos": [0,0],
+      "scale": [100,100],
+      "rotation": 0,
+      "opacity": 255
+    }
+  ]
+}
