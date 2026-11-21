@@ -55,6 +55,9 @@ type
     color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
     width*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    cap*: StrokeCap
+    join*: StrokeJoin
+    miterLimit*: float32
     dashes*: seq[LottieGenericProperty[LottieScalarFrame[float32], float32]]
     dashOffset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 
@@ -100,6 +103,9 @@ type
     angle*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     width*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     gradType*: int # 1=linear, 2=radial
+    cap*: StrokeCap
+    join*: StrokeJoin
+    miterLimit*: float32
     dashes*: seq[LottieGenericProperty[LottieScalarFrame[float32], float32]]
     dashOffset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 

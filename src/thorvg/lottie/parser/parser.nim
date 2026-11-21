@@ -530,7 +530,8 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     return f
   of "st":
     let st = LottieStrokeObj(objType: otSolidStroke, name: nm, hidden: hd,
-      color: newColorProp(LottieColor(r:0,g:0,b:0)), opacity: newScalarProp(255'u8), width: newScalarProp(0.0'f32))
+      color: newColorProp(LottieColor(r:0,g:0,b:0)), opacity: newScalarProp(255'u8), width: newScalarProp(0.0'f32),
+      cap: StrokeCap.Round, join: StrokeJoin.Round, miterLimit: 4.0'f32)
     if j.hasKey("c"):
       if hasExpr(j["c"]): warnings.add(ctx & ".c: stroke color has expression, skipped")
       st.color = parseColorProp(j["c"])
@@ -543,6 +544,9 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
       if hasExpr(j["w"]): warnings.add(ctx & ".w: stroke width has expression, skipped")
       st.width = parseScalarProp(j["w"], 0.0'f32)
       if st.width.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: st.width.sid, apply: proc(ov: JsonNode) = st.width = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("lc"): st.cap = StrokeCap(clamp(asInt(j["lc"], 2) - 1, 0, 2))
+    if j.hasKey("lj"): st.join = StrokeJoin(clamp(asInt(j["lj"], 2) - 1, 0, 2))
+    if j.hasKey("ml"): st.miterLimit = asFloat(j["ml"], 0.0'f32)
     if j.hasKey("d") and j["d"].kind == JArray:
       st.dashOffset = newScalarProp(0.0'f32)
       for di in j["d"]:
@@ -619,7 +623,8 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     let gs = LottieGradientStrokeObj(objType: otGradientStroke, name: nm, hidden: hd,
       opacity: newScalarProp(255'u8), start: newScalarProp(lp(0,0)), `end`: newScalarProp(lp(0,0)),
       height: newScalarProp(0.0'f32), angle: newScalarProp(0.0'f32),
-      width: newScalarProp(0.0'f32), gradType: 1)
+      width: newScalarProp(0.0'f32), gradType: 1,
+      cap: StrokeCap.Round, join: StrokeJoin.Round, miterLimit: 0.0'f32)
     if j.hasKey("o"):
       gs.opacity = parseOpacityProp(j["o"], 100.0'f32)
       if gs.opacity.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: gs.opacity.sid, apply: proc(ov: JsonNode) = gs.opacity = parseOpacityProp(ov, 100.0'f32)))
@@ -639,6 +644,9 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
       gs.angle = parseScalarProp(j["a"], 0.0'f32)
       if gs.angle.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: gs.angle.sid, apply: proc(ov: JsonNode) = gs.angle = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("t"): gs.gradType = asInt(j["t"], 1)
+    if j.hasKey("lc"): gs.cap = StrokeCap(clamp(asInt(j["lc"], 2) - 1, 0, 2))
+    if j.hasKey("lj"): gs.join = StrokeJoin(clamp(asInt(j["lj"], 2) - 1, 0, 2))
+    if j.hasKey("ml"): gs.miterLimit = asFloat(j["ml"], 0.0'f32)
     if j.hasKey("g"):
       var gsid: uint32 = 0
       gs.stops = parseGradientStops(j["g"], gsid)

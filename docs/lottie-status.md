@@ -44,7 +44,7 @@
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
 - Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones.
 - Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR; opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`).
-- Mejoras recientes: `test10` 18648/19925/16193/19747/21159 -> 11815/16556/15993/16378/15253 por `bm`, luego 11760/16452/15889/16269/15160 por stroke dashes. `test13` sin cambio (matted layers invisibles por parent Null 8 opacity 0; diffs por otras features). Sin regresiones.
+- Mejoras recientes: `test10` -> 10988/15423/15146/15260/14076 por stroke lc/lj/ml+dashes+bm; `slot` 234/494/9/9/9 -> 225/368/pass/pass/pass. `test11` leve aumento (815/143 -> 873/201) por cap/join/miter correctos. `test13` sin cambio.
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
 - Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
 - Bloqueadores: asset imagen slot, masks expand/mattes, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino, rd paths, rp/mm/pb/op, RenderContext/propagator C++.

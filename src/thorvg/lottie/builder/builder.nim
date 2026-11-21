@@ -403,6 +403,9 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.hasStroke = true
         local.hasStrokeGrad = false
         local.strokeWidth = st.width.eval(frameNo)
+        local.strokeCap = st.cap
+        local.strokeJoin = st.join
+        local.strokeMiter = st.miterLimit
         if st.dashes.len > 0:
           local.strokeDashes.setLen(0)
           for d in st.dashes:
@@ -423,6 +426,9 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.hasStrokeGrad = true
         local.hasStroke = true
         local.strokeWidth = gs.width.eval(frameNo)
+        local.strokeCap = gs.cap
+        local.strokeJoin = gs.join
+        local.strokeMiter = gs.miterLimit
         if gs.dashes.len > 0:
           local.strokeDashes.setLen(0)
           for d in gs.dashes:
