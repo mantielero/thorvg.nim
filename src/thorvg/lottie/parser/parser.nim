@@ -754,6 +754,10 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
     id: 0'u32,
     layerType: ltShape,
     hidden: false,
+    matteType: MaskMethod.None,
+    matteTarget: nil,
+    matteSrc: false,
+    mix: -1,
     inPoint: 0.0'f32, outPoint: 0.0'f32, startTime: 0.0'f32, startFrame: 0.0'f32,
     timeStretch: 1.0'f32,
     timeRemap: newScalarProp(-1.0'f32),
@@ -768,6 +772,11 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
   if result.layerType == ltAudio:
     warnings.add(ctx & ": audio layer not supported")
   if j.hasKey("hd"): result.hidden = asInt(j["hd"], 0) != 0
+  if j.hasKey("tt"):
+    let tt = clamp(asInt(j["tt"], 0), 0, 4)
+    result.matteType = MaskMethod(tt)
+  if j.hasKey("tp"): result.mix = asInt(j["tp"], -1)
+  if j.hasKey("td"): result.matteSrc = asInt(j["td"], 0) != 0
   if j.hasKey("ip"): result.inPoint = asFloat(j["ip"])
   if j.hasKey("op"): result.outPoint = asFloat(j["op"])
   if j.hasKey("st"):

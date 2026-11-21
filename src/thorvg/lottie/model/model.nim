@@ -141,6 +141,10 @@ type
     transform*: LottieTransform
     children*: seq[LottieObject] # shapes/groups
     masks*: seq[LottieMask]
+    matteType*: MaskMethod
+    matteTarget*: LottieLayer
+    matteSrc*: bool
+    mix*: int
     inPoint*, outPoint*, startTime*, startFrame*: float32
     timeStretch*: float32
     timeRemap*: LottieGenericProperty[LottieScalarFrame[float32], float32]
