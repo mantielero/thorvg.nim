@@ -535,12 +535,12 @@ proc layerWorldOpacity(layers: seq[LottieLayer]; layer: LottieLayer; frameNo: fl
     inc guard
   uint8(clamp(op, 0, 255))
 
-proc resolveMatteTargets(layers: seq[LottieLayer]) =
+proc resolveMatteTargets*(layers: seq[LottieLayer]) =
   for i, layer in layers:
     layer.matteTarget = nil
     if layer == nil or layer.matteType == MaskMethod.None: continue
-    if layer.mix >= 0 and layer.mix < layers.len:
-      layer.matteTarget = layers[layer.mix]
+    if layer.mix >= 0:
+      layer.matteTarget = findLayerById(layers, layer.mix)
     elif i > 0:
       # Lottie matte target is usually the previous layer in the stack.
       layer.matteTarget = layers[i - 1]
@@ -570,9 +570,9 @@ proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: 
     pOpacity = opacity
     pMethod = maskMode
 
-proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene
+proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene
 
-proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene =
+proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene =
   if layer == nil or layer.hidden: return nil
   if addToRoot and layer.matteSrc: return nil
   if frameNo < layer.inPoint or frameNo >= layer.outPoint: return nil
@@ -584,15 +584,23 @@ proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lottie
 
   proc finalizeLayerScene(layerScene: Scene): Scene =
     if layerScene == nil: return nil
+    # Matte first (C++ updateMatte before updateMasks), then masks with wrap if needed.
     if layer.matteType != MaskMethod.None and layer.matteTarget != nil:
       let matteScene = buildLayer(comp, layers, layer.matteTarget, frameNo, root, parentWorld, depth + 1, addToRoot = false)
       if matteScene != nil:
         discard layerScene.mask(matteScene, layer.matteType)
       elif layer.matteType == MaskMethod.Alpha or layer.matteType == MaskMethod.Luma:
         return nil
+    var outScene = layerScene
+    if layer.masks.len > 0:
+      if layer.matteTarget != nil or layer.layerType == ltPrecomp:
+        let wrap = newScene()
+        discard wrap.add(layerScene)
+        outScene = wrap
+      applyMasks(outScene, layer, frameNo, world)
     if addToRoot:
-      discard root.add(layerScene)
-    layerScene
+      discard root.add(outScene)
+    outScene
 
   if layer.layerType == ltPrecomp:
     let asset = findAsset(comp, layer.refId)
@@ -603,7 +611,6 @@ proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lottie
     resolveMatteTargets(asset.layers)
     for i in countdown(asset.layers.len - 1, 0):
       discard buildLayer(comp, asset.layers, asset.layers[i], remapped, precompScene, world, depth + 1)
-    applyMasks(precompScene, layer, frameNo, world)
     return finalizeLayerScene(precompScene)
 
   if layer.layerType == ltSolid:
@@ -615,7 +622,6 @@ proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lottie
     discard sh.fill(c.r, c.g, c.b, c.a)
     discard sh.transform(world)
     discard layerScene.add(sh)
-    applyMasks(layerScene, layer, frameNo, world)
     return finalizeLayerScene(layerScene)
 
   if layer.layerType == ltImage:
@@ -630,7 +636,6 @@ proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lottie
         let layerScene = newScene()
         discard layerScene.opacity(op)
         discard layerScene.add(pic)
-        applyMasks(layerScene, layer, frameNo, world)
         return finalizeLayerScene(layerScene)
     return nil
 
@@ -652,7 +657,6 @@ proc buildLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lottie
   discard layerScene.opacity(uint8(clamp(parentOp, 0, 255)))
   let g = LottieGroup(objType: otGroup, children: layer.children)
   buildGroup(g, frameNo, layerScene, ctx)
-  applyMasks(layerScene, layer, frameNo, world)
   return finalizeLayerScene(layerScene)
 
 proc update*(b: LottieBuilder; frameNo: float32; targetW = 0.0'f32; targetH = 0.0'f32): bool =
