@@ -235,10 +235,10 @@ proc applyRenderPathToShape(s: Shape; rp: RenderPath) =
 proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, innerRound, rotDeg, ptsF: float32; starType: int) =
   let n = max(3, int(round(ptsF)))
   let rot = deg2rad(rotDeg - 90.0'f32)
-  let step = MathPi / float32(n)
+  let isStar = starType == 1
+  let step = if isStar: PI / float32(n) else: 2.0'f32 * PI / float32(n)
   var angle = rot
   var first = true
-  let isStar = starType == 1
   let count = if isStar: n * 2 else: n
   for i in 0 ..< count:
     let useOuter = (not isStar) or (i mod 2 == 0)
@@ -1111,9 +1111,8 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
     of etFill:
       let fx = LottieFxFill(e)
       let c = fx.color.eval(frameNo)
-      var op = fx.opacity.eval(frameNo)
-      if op > 1.0'f32: op = op / 100.0'f32
-      let a = clamp(int(op * 255.0'f32 + 0.5'f32), 0, 255)
+      let op = fx.opacity.eval(frameNo)
+      let a = int(255.0'f32 * op) and 0xFF
       discard layerScene.fill(int(c.r * 255.0'f32 + 0.5'f32), int(c.g * 255.0'f32 + 0.5'f32), int(c.b * 255.0'f32 + 0.5'f32), a)
     of etTritone:
       let fx = LottieFxTritone(e)
@@ -1157,9 +1156,8 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
       let begin = fx.begin.eval(frameNo) * 0.01'f32
       let endv = fx.`end`.eval(frameNo) * 0.01'f32
       discard shape.trimpath(begin, endv)
-      var sop = fx.opacity.eval(frameNo)
-      if sop > 1.0'f32: sop = sop / 100.0'f32
-      let sa = clamp(int(sop * 255.0'f32 + 0.5'f32), 0, 255)
+      let sop = fx.opacity.eval(frameNo)
+      let sa = int(255.0'f32 * sop) and 0xFF
       discard shape.strokeFill(255'u8, 255'u8, 255'u8, uint8(sa))
       discard shape.strokeJoin(StrokeJoin.Round)
       discard shape.strokeCap(StrokeCap.Round)
