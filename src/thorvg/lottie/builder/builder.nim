@@ -589,6 +589,50 @@ proc resolveMatteTargets*(layers: seq[LottieLayer]) =
       # Lottie matte target is usually the previous layer in the stack.
       layer.matteTarget = layers[i - 1]
 
+proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32) =
+  const BLUR_TO_SIGMA = 0.3'f32
+  for e in layer.effects:
+    if e == nil or not e.enable: continue
+    case e.effectType
+    of etTint:
+      let fx = LottieFxTint(e)
+      let black = fx.black.eval(frameNo)
+      let white = fx.white.eval(frameNo)
+      let intensity = fx.intensity.eval(frameNo)
+      discard layerScene.tint(int(black.r * 255.0'f32 + 0.5'f32), int(black.g * 255.0'f32 + 0.5'f32), int(black.b * 255.0'f32 + 0.5'f32),
+                              int(white.r * 255.0'f32 + 0.5'f32), int(white.g * 255.0'f32 + 0.5'f32), int(white.b * 255.0'f32 + 0.5'f32),
+                              float(intensity))
+    of etFill:
+      let fx = LottieFxFill(e)
+      let c = fx.color.eval(frameNo)
+      var op = fx.opacity.eval(frameNo)
+      if op > 1.0'f32: op = op / 100.0'f32
+      let a = clamp(int(op * 255.0'f32 + 0.5'f32), 0, 255)
+      discard layerScene.fill(int(c.r * 255.0'f32 + 0.5'f32), int(c.g * 255.0'f32 + 0.5'f32), int(c.b * 255.0'f32 + 0.5'f32), a)
+    of etTritone:
+      let fx = LottieFxTritone(e)
+      let bright = fx.bright.eval(frameNo)
+      let midtone = fx.midtone.eval(frameNo)
+      let dark = fx.dark.eval(frameNo)
+      let blend = clamp(int(fx.blend.eval(frameNo)), 0, 255)
+      discard layerScene.tritone([int(dark.r*255+0.5'f32), int(dark.g*255+0.5'f32), int(dark.b*255+0.5'f32)],
+                                 [int(midtone.r*255+0.5'f32), int(midtone.g*255+0.5'f32), int(midtone.b*255+0.5'f32)],
+                                 [int(bright.r*255+0.5'f32), int(bright.g*255+0.5'f32), int(bright.b*255+0.5'f32)],
+                                 blend)
+    of etGaussianBlur:
+      let fx = LottieFxGaussianBlur(e)
+      let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
+      discard layerScene.gaussianBlur(sigma, fx.direction - 1, fx.wrap, 100)
+    of etDropShadow:
+      let fx = LottieFxDropShadow(e)
+      let c = fx.color.eval(frameNo)
+      let op = clamp(int(fx.opacity.eval(frameNo)), 0, 255)
+      let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
+      discard layerScene.dropShadow(int(c.r*255+0.5'f32), int(c.g*255+0.5'f32), int(c.b*255+0.5'f32), op,
+                                    fx.angle.eval(frameNo), fx.distance.eval(frameNo), sigma, 100)
+    else:
+      discard
+
 proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: Matrix) =
   if layer.masks.len == 0: return
   var pShape: Shape = nil
@@ -644,6 +688,8 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
       applyMasks(outScene, layer, frameNo, world)
     if layer.blendMode != BlendMethod.Normal:
       discard outScene.blend(layer.blendMode)
+    if layer.effects.len > 0:
+      applyEffects(outScene, layer, frameNo)
     if addToRoot:
       discard root.add(outScene)
     outScene

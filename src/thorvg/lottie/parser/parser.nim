@@ -775,6 +775,105 @@ proc parseMask(j: JsonNode): LottieMask =
     else: discard
   result.mode = getMaskMethod(modeStr, result.inverse)
 
+proc parseEffectPropScalar(v: JsonNode; def: float32 = 0.0'f32): LottieGenericProperty[LottieScalarFrame[float32], float32] =
+  if v.kind == JObject and v.hasKey("v"):
+    parseScalarProp(v["v"], def)
+  else:
+    parseScalarProp(v, def)
+
+proc parseEffectPropColor(v: JsonNode): LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor] =
+  if v.kind == JObject and v.hasKey("v"):
+    parseColorProp(v["v"])
+  else:
+    parseColorProp(v)
+
+proc parseEffectPropOpacity(v: JsonNode; defPct: float32 = 100.0'f32): LottieGenericProperty[LottieScalarFrame[float32], float32] =
+  # effect opacity is usually 0..1 or 0..255 depending on effect; keep as scalar
+  parseEffectPropScalar(v, defPct)
+
+proc parseEffects(j: JsonNode): seq[LottieEffect] =
+  result = @[]
+  if j.kind != JArray: return
+  for ej in j:
+    if ej.kind != JObject: continue
+    let ty = asInt(ej.getNode("ty"), -1)
+    let en = if ej.hasKey("en"): asInt(ej["en"], 1) != 0 else: true
+    let props = if ej.hasKey("ef") and ej["ef"].kind == JArray: ej["ef"] else: newJArray()
+    case ty
+    of 20: # Tint
+      let fx = LottieFxTint(effectType: etTint, enable: en,
+        black: newColorProp(LottieColor(r:0,g:0,b:0)),
+        white: newColorProp(LottieColor(r:1,g:1,b:1)),
+        intensity: newScalarProp(100.0'f32))
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 0: fx.black = parseEffectPropColor(p)
+        of 1: fx.white = parseEffectPropColor(p)
+        of 2: fx.intensity = parseEffectPropScalar(p, 100.0'f32)
+        else: discard
+      result.add(fx)
+    of 21: # Fill
+      let fx = LottieFxFill(effectType: etFill, enable: en,
+        color: newColorProp(LottieColor(r:0,g:0,b:0)),
+        opacity: newScalarProp(1.0'f32))
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 2: fx.color = parseEffectPropColor(p)
+        of 6: fx.opacity = parseEffectPropScalar(p, 1.0'f32)
+        else: discard
+      result.add(fx)
+    of 23: # Tritone
+      let fx = LottieFxTritone(effectType: etTritone, enable: en,
+        bright: newColorProp(LottieColor(r:1,g:1,b:1)),
+        midtone: newColorProp(LottieColor(r:0.5,g:0.5,b:0.5)),
+        dark: newColorProp(LottieColor(r:0,g:0,b:0)),
+        blend: newScalarProp(100.0'f32))
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 0: fx.bright = parseEffectPropColor(p)
+        of 1: fx.midtone = parseEffectPropColor(p)
+        of 2: fx.dark = parseEffectPropColor(p)
+        of 3: fx.blend = parseEffectPropScalar(p, 100.0'f32)
+        else: discard
+      result.add(fx)
+    of 25: # DropShadow
+      let fx = LottieFxDropShadow(effectType: etDropShadow, enable: en,
+        color: newColorProp(LottieColor(r:0,g:0,b:0)),
+        opacity: newScalarProp(0.0'f32),
+        angle: newScalarProp(0.0'f32),
+        distance: newScalarProp(0.0'f32),
+        blurness: newScalarProp(0.0'f32))
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 0: fx.color = parseEffectPropColor(p)
+        of 1: fx.opacity = parseEffectPropScalar(p, 0.0'f32)
+        of 2: fx.angle = parseEffectPropScalar(p, 0.0'f32)
+        of 3: fx.distance = parseEffectPropScalar(p, 0.0'f32)
+        of 4: fx.blurness = parseEffectPropScalar(p, 0.0'f32)
+        else: discard
+      result.add(fx)
+    of 29: # GaussianBlur
+      let fx = LottieFxGaussianBlur(effectType: etGaussianBlur, enable: en,
+        blurness: newScalarProp(0.0'f32), direction: 0, wrap: 0)
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 0: fx.blurness = parseEffectPropScalar(p, 0.0'f32)
+        of 1:
+          let v = if p.kind == JObject and p.hasKey("v"): p["v"] else: p
+          fx.direction = if v.kind == JObject and v.hasKey("k"): asInt(v["k"], 0) else: asInt(v, 0)
+        of 2:
+          let v = if p.kind == JObject and p.hasKey("v"): p["v"] else: p
+          fx.wrap = if v.kind == JObject and v.hasKey("k"): asInt(v["k"], 0) else: asInt(v, 0)
+        else: discard
+      result.add(fx)
+    else:
+      discard
+
 proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
   let lname = (if j.kind == JObject and j.hasKey("nm"): j["nm"].getStr("") else: "")
   let ctx = "layers[" & $idx & "]('" & lname & "')"
@@ -846,6 +945,8 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
         let m = parseMask(mj)
         if m.mode != MaskMethod.None:
           result.masks.add(m)
+  if j.hasKey("ef") and j["ef"].kind == JArray:
+    result.effects = parseEffects(j["ef"])
 
 proc applySlots(comp: LottieComposition) =
   if comp.slots.len == 0 or comp.slotBindings.len == 0: return

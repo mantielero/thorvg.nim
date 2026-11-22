@@ -33,7 +33,7 @@
 
 ### Gaps Phase 1/2
 - Per-dimension easing: `interpolatorsD` modelado y parseado cuando i.x/o.x son arrays; evaluación usa interpolador colapsado (C++ getValue) para paridad. Evaluación per-dim explícita queda pendiente solo si se confirma semántica distinta a C++.
-- Shape model: árbol básico presente; faltan tipos (gf/gs/sr/rp/mm/pb/rd/zz etc.), masks, mattes, precomps, assets, slots, text, effects, fonts, markers.
+- Shape model: árbol básico presente; faltan tipos (rp/mm/pb/rd en paths, etc.), text/fonts/markers; masks/mattes/precomps/assets/slots/effects básicos parciales.
 - Shape/path: hay tipo+lerp+parser+evaluator básico; falta interpolación avanzada y render (Phase 2/3).
 - Diagnósticos: tienen ctx de layer/shape; falta ruta JSON/property completa y cobertura exhaustiva de unsupported.
 - Golden props cubren transforms; ampliar dumps para color/path/otras props cuando existan. Tolerancia pos/scale 0.5px por precisión float.
@@ -43,8 +43,8 @@
 - Módulo: `src/thorvg/lottie/builder/builder.nim`
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
 - Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones.
-- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR; opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`).
-- Mejoras recientes: `test10` -> 9612/14180/14134/14372/13351 por lc/lj/ml+dashes+bm+trimpath múltiple; `slot` 234/494/9/9/9 -> 225/368/pass/pass/pass. `test11` leve aumento (815/143 -> 873/201) por cap/join/miter correctos. `test13` sin cambio.
+- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR; opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow).
+- Mejoras recientes: `test10` -> 4032/8665/8552/8856/7773 por efectos básicos+lc/lj/ml+dashes+bm+trimpath múltiple; `test12` maxDiff 255->63 (diffPx 9835->11508); `slot` 225/368/pass/pass/pass. `test11` leve aumento (815/143 -> 873/201) por cap/join/miter correctos. `test13` sin cambio.
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
 - Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
 - Bloqueadores: asset imagen slot, masks expand/mattes, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino, rd paths, rp/mm/pb/op, RenderContext/propagator C++.

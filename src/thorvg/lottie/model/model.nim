@@ -132,6 +132,47 @@ type
   LottiePuckerBloatObj* = ref object of LottieObject
     amount*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 
+  LottieEffectType* = enum
+    etCustom = 5, etTint = 20, etFill = 21, etStroke = 22, etTritone = 23, etDropShadow = 25, etGaussianBlur = 29
+
+  LottieEffect* = ref object of RootObj
+    effectType*: LottieEffectType
+    enable*: bool
+
+  LottieFxTint* = ref object of LottieEffect
+    black*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    white*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    intensity*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+
+  LottieFxFill* = ref object of LottieEffect
+    color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    opacity*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+
+  LottieFxStroke* = ref object of LottieEffect
+    color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    size*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    opacity*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    begin*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    `end`*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+
+  LottieFxTritone* = ref object of LottieEffect
+    bright*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    midtone*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    dark*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    blend*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+
+  LottieFxGaussianBlur* = ref object of LottieEffect
+    blurness*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    direction*: int
+    wrap*: int
+
+  LottieFxDropShadow* = ref object of LottieEffect
+    color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    opacity*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    angle*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    distance*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    blurness*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+
   LottieAsset* = ref object of LottieObject
     id*: string
     layers*: seq[LottieLayer] # for precomp
@@ -152,6 +193,7 @@ type
     transform*: LottieTransform
     children*: seq[LottieObject] # shapes/groups
     masks*: seq[LottieMask]
+    effects*: seq[LottieEffect]
     matteType*: MaskMethod
     matteTarget*: LottieLayer
     matteSrc*: bool
