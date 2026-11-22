@@ -1163,7 +1163,27 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
       discard shape.strokeFill(255'u8, 255'u8, 255'u8, uint8(sa))
       discard shape.strokeJoin(StrokeJoin.Round)
       discard shape.strokeCap(StrokeCap.Round)
-      discard shape.strokeWidth(fx.size.eval(frameNo) * 2.0'f32)
+      let strokeSize = fx.size.eval(frameNo) * 2.0'f32
+      discard shape.strokeWidth(strokeSize)
+      let col = fx.color.eval(frameNo)
+      let cr = uint8(clamp(int(col.r * 255.0'f32 + 0.5'f32), 0, 255))
+      let cg = uint8(clamp(int(col.g * 255.0'f32 + 0.5'f32), 0, 255))
+      let cb = uint8(clamp(int(col.b * 255.0'f32 + 0.5'f32), 0, 255))
+      if cr != 255'u8 or cg != 255'u8 or cb != 255'u8:
+        let isShapeLayer = layer.layerType == ltShape
+        proc fillShapes(p: Paint) =
+          if p == nil: return
+          if p of Shape:
+            let s = Shape(p)
+            if isShapeLayer:
+              discard s.strokeWidth(strokeSize)
+              discard s.strokeFill(cr, cg, cb, 255'u8)
+            discard s.fill(cr, cg, cb, 255'u8)
+          elif p of Scene:
+            let sc = Scene(p)
+            for child in sc.paints:
+              fillShapes(child)
+        fillShapes(layerScene)
       discard layerScene.mask(shape, MaskMethod.Alpha)
     else:
       discard
