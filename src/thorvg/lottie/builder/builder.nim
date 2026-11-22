@@ -118,7 +118,38 @@ proc applyTransform(m: var Matrix; t: LottieTransform; frameNo: float32) =
   # Lottie: translate(pos) * rotate(autoOrient+rot) * skew * scale(scale/100) * translate(-anchor)
   var mt = identity()
   translate(mt, pt(pos.x, pos.y))
-  if rot != 0.0'f32: rotate(mt, rot)
+  if t.has3D:
+    let rxv = degToRad(t.rx.eval(frameNo))
+    let ryv = degToRad(t.ry.eval(frameNo))
+    let rzv = degToRad(rot) # rotation already holds rz when 3D
+    let sinx = sin(rxv); let siny = sin(ryv); let sinz = sin(rzv)
+    let cosx = cos(rxv); let cosy = cos(ryv); let cosz = cos(rzv)
+    let ri00 = cosy * cosz
+    let ri01 = -cosy * sinz
+    let ri10 = sinx * siny * cosz + cosx * sinz
+    let ri11 = -sinx * siny * sinz + cosx * cosz
+    let o = t.orient.eval(frameNo)
+    let ozVal = t.orientZ.eval(frameNo)
+    if o.x == 0.0'f32 and o.y == 0.0'f32 and ozVal == 0.0'f32:
+      mt.e11 = ri00; mt.e12 = ri01; mt.e21 = ri10; mt.e22 = ri11
+    else:
+      let ri02 = siny
+      let ri12 = -sinx * cosy
+      let ox = degToRad(o.x); let oy = degToRad(o.y); let oz = degToRad(ozVal)
+      let sox = sin(ox); let soy = sin(oy); let soz = sin(oz)
+      let cox = cos(ox); let coy = cos(oy); let coz = cos(oz)
+      let ro00 = coy * coz
+      let ro01 = -coy * soz
+      let ro10 = sox * soy * coz + cox * soz
+      let ro11 = -sox * soy * soz + cox * coz
+      let ro20 = -cox * soy * coz + sox * soz
+      let ro21 = cox * soy * soz + sox * coz
+      mt.e11 = ri00 * ro00 + ri01 * ro10 + ri02 * ro20
+      mt.e12 = ri00 * ro01 + ri01 * ro11 + ri02 * ro21
+      mt.e21 = ri10 * ro00 + ri11 * ro10 + ri12 * ro20
+      mt.e22 = ri10 * ro01 + ri11 * ro11 + ri12 * ro21
+  elif rot != 0.0'f32:
+    rotate(mt, rot)
   let skewAngle = t.skewAngle.eval(frameNo)
   if skewAngle != 0.0'f32:
     var sa = skewAngle mod 180.0'f32

@@ -437,6 +437,43 @@ proc parseTransform(j: JsonNode; warnings: var seq[string]; layerName: string): 
       if hasExpr(j["or"]): warnings.add("layer '" & layerName & "': orientation has expression, skipped")
       t.orient = parseScalarPointProp(j["or"], lp(0,0))
       if t.orient.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.orient.sid, apply: proc(ov: JsonNode) = t.orient = parseScalarPointProp(ov, lp(0,0))))
+      # orient z: parse third component
+      block parseOrientZ:
+        let oj = j["or"]
+        if oj.kind == JObject:
+          let oa = asInt(oj.getNode("a"), 0)
+          let ok = oj.getNode("k")
+          if oa == 0 or ok.kind != JArray:
+            let zv = if ok.kind == JArray and ok.len >= 3: asFloat(ok[2]) else: 0.0'f32
+            t.orientZ = newScalarProp(zv)
+          else:
+            var zp = newScalarProp(0.0'f32)
+            zp.hasFrames = true
+            zp.frames = @[]
+            var pendingZ = 0.0'f32
+            var hasPendingZ = false
+            for item in ok:
+              if item.kind != JObject: continue
+              var f: LottieScalarFrame[float32]
+              f.no = asFloat(item.getNode("t"))
+              f.hold = asInt(item.getNode("h"), 0) == 1
+              if item.hasKey("s") and item["s"].kind == JArray and item["s"].len >= 3:
+                f.value = asFloat(item["s"][2])
+              elif hasPendingZ:
+                f.value = pendingZ
+                hasPendingZ = false
+              else:
+                f.value = 0.0'f32
+              if item.hasKey("e") and item["e"].kind == JArray and item["e"].len >= 3:
+                pendingZ = asFloat(item["e"][2]); hasPendingZ = true
+              if item.hasKey("i") or item.hasKey("o"):
+                let inTan = getInterpolatorPoint(item.getNode("i"))
+                let outTan = getInterpolatorPoint(item.getNode("o"))
+                f.interpolator = makeInterpolator(inTan, outTan)
+              zp.frames.add(f)
+            t.orientZ = zp
+        elif oj.kind == JArray and oj.len >= 3:
+          t.orientZ = newScalarProp(asFloat(oj[2]))
 
 proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObject
 

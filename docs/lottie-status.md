@@ -42,9 +42,9 @@
 - Estado: **en progreso**
 - Módulo: `src/thorvg/lottie/builder/builder.nim`
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
-- Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones. Mejora: test4 3534/2004 -> 22/pass, test5 mejoró con skew.
-- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`); opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow).
-- Mejoras recientes: skew fix (test4 22/pass, test5 mejorado). `test10` 4032/8665/8552/8856/7773; `test12` maxDiff 63; `slot` 225/368/pass/pass/pass.
+- Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones. Mejora: test4 14/pass, test10 frames animados mejoran con 3D.
+- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`)+3D básico(`rx/ry/rz/or`); opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow).
+- Mejoras recientes: skew+3D (test4 14/pass, test10 4032/6275/6161/6468/7574). `test12` maxDiff 63; `slot` 225/368/pass/pass/pass.
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
 - Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
 - Bloqueadores: asset imagen slot, masks expand/mattes, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino, rd paths, rp/mm/pb/op, RenderContext/propagator C++.

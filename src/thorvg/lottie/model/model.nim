@@ -33,6 +33,7 @@ type
     ry*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     rz*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     orient*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    orientZ*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     has3D*: bool
     separate*: bool
     sepX*: LottieGenericProperty[LottieScalarFrame[float32], float32]
@@ -248,6 +249,7 @@ proc newLottieTransform*(): LottieTransform =
     ry: newScalarProp(0.0'f32),
     rz: newScalarProp(0.0'f32),
     orient: newScalarProp(lp(0,0)),
+    orientZ: newScalarProp(0.0'f32),
     has3D: false,
     separate: false,
     sepX: newScalarProp(0.0'f32),
