@@ -36,6 +36,7 @@ type
     zigzagFreq*: float32
     zigzagPoint*: int
     hasZigzag*: bool
+    puckerBloat*: float32
 
   LottieBuilder* = ref object
     comp*: LottieComposition
@@ -465,6 +466,70 @@ proc roundPath(inPath: RenderPath; r: float32): RenderPath =
     rounded = false
     inc iCmds
 
+proc puckerBloatCenter(cmds: seq[PathCommand]; pts: seq[Point]): Point =
+  var center = Point(x:0, y:0)
+  var count = 0
+  var p = 0
+  var start = 0
+  for ci in 0 ..< cmds.len:
+    case cmds[ci]
+    of PathCommand.MoveTo:
+      start = p
+      inc p
+    of PathCommand.CubicTo:
+      if p - 1 >= 0 and p + 2 < pts.len:
+        center = center + pts[p-1] + pts[p] + pts[p+1] + pts[p+2]
+        count += 4
+      p += 3
+    of PathCommand.LineTo:
+      if p - 1 >= 0 and p < pts.len:
+        center = center + pts[p-1] + pts[p]
+        count += 2
+      inc p
+    of PathCommand.Close:
+      if p - 1 >= 0 and start < pts.len and not zero(pts[p-1] - pts[start]):
+        center = center + pts[p-1] + pts[start]
+        count += 2
+  if count > 0: center / float32(count) else: Point(x:0, y:0)
+
+proc puckerBloatPath(inPath: RenderPath; amount: float32): RenderPath =
+  if amount == 0.0'f32 or inPath.cmds.len == 0: return inPath
+  result = RenderPath(cmds: @[], pts: @[])
+  let center = puckerBloatCenter(inPath.cmds, inPath.pts)
+  let a = amount * 0.01'f32
+  var p = 0
+  var start = 0
+  for ci in 0 ..< inPath.cmds.len:
+    case inPath.cmds[ci]
+    of PathCommand.MoveTo:
+      start = p
+      result.cmds.add(PathCommand.MoveTo)
+      result.pts.add(inPath.pts[p] + (center - inPath.pts[p]) * a)
+      inc p
+    of PathCommand.CubicTo:
+      result.cmds.add(PathCommand.CubicTo)
+      result.pts.add(inPath.pts[p] - (center - inPath.pts[p]) * a)
+      result.pts.add(inPath.pts[p+1] - (center - inPath.pts[p+1]) * a)
+      result.pts.add(inPath.pts[p+2] + (center - inPath.pts[p+2]) * a)
+      p += 3
+    of PathCommand.LineTo:
+      result.cmds.add(PathCommand.CubicTo)
+      let prev = inPath.pts[p-1]
+      let curr = inPath.pts[p]
+      result.pts.add(prev - (center - prev) * a)
+      result.pts.add(curr - (center - curr) * a)
+      result.pts.add(curr + (center - curr) * a)
+      inc p
+    of PathCommand.Close:
+      if p - 1 >= 0 and start < inPath.pts.len and not zero(inPath.pts[p-1] - inPath.pts[start]):
+        let prev = inPath.pts[p-1]
+        let st = inPath.pts[start]
+        result.cmds.add(PathCommand.CubicTo)
+        result.pts.add(prev - (center - prev) * a)
+        result.pts.add(st - (center - st) * a)
+        result.pts.add(st + (center - st) * a)
+      result.cmds.add(PathCommand.Close)
+
 proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: LottieBuildCtx) =
   var local = ctx
   # collect group transform and style (fills/strokes/tr). Lottie order varies; MVP collects all.
@@ -558,10 +623,16 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.zigzagAmp = zz.amplitude.eval(frameNo)
         local.zigzagFreq = zz.frequency.eval(frameNo)
         local.zigzagPoint = zz.pointType
+    elif child of LottiePuckerBloatObj:
+      let pb = LottiePuckerBloatObj(child)
+      if not pb.hidden:
+        local.puckerBloat = pb.amount.eval(frameNo)
   var acc = newShape()
   var accHas = false
   proc flushAcc() =
     if not accHas: return
+    if local.puckerBloat != 0.0'f32:
+      acc.rs.path = puckerBloatPath(acc.rs.path, local.puckerBloat)
     if local.hasZigzag and local.zigzagAmp != 0.0'f32 and local.zigzagFreq > 0.0'f32:
       acc.rs.path = applyZigZag(acc.rs.path, local.zigzagAmp, local.zigzagFreq, local.zigzagPoint)
     applyStyle(acc, local)
