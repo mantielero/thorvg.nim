@@ -42,10 +42,10 @@ func split(l: Line, at: float32, left, right: var Line) =
 func segLength(cmd: PathCommand, pts: openArray[Point], pi: int, moveTo: Point): float32 =
   case cmd
   of PathCommand.MoveTo: 0.0'f32
-  of PathCommand.LineTo: length(pts[pi - 1], pts[pi])
+  of PathCommand.LineTo: length(pts[pi] - pts[pi - 1])
   of PathCommand.CubicTo:
     length(initBezier(pts[pi - 1], pts[pi], pts[pi + 1], pts[pi + 2]))
-  of PathCommand.Close: length(pts[pi - 1], moveTo)
+  of PathCommand.Close: length(moveTo - pts[pi - 1])
 
 func totalLength(cmds: openArray[PathCommand], pts: openArray[Point], ci0, cnt, pi0,
                  ptsCnt: int): float32 =
@@ -56,12 +56,12 @@ func totalLength(cmds: openArray[PathCommand], pts: openArray[Point], ci0, cnt, 
   for ci in ci0 ..< ci0 + cnt:
     case cmds[ci]
     of PathCommand.Close:
-      result += length(pts[pi - 1], start)
+      result += length(start - pts[pi - 1])
     of PathCommand.MoveTo:
       start = pts[pi]
       inc pi
     of PathCommand.LineTo:
-      result += length(pts[pi - 1], pts[pi])
+      result += length(pts[pi] - pts[pi - 1])
       inc pi
     of PathCommand.CubicTo:
       result += length(initBezier(pts[pi - 1], pts[pi], pts[pi + 1], pts[pi + 2]))
