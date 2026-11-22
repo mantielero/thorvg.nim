@@ -374,6 +374,97 @@ proc applyZigZag*(inPath: RenderPath; amp, freqF: float32; pointType: int): Rend
       verts.setLen(0); ins.setLen(0); outs.setLen(0); closed = false
   flushSub()
   result = outPath
+proc colinear(p: seq[Point]; i: int): bool =
+  i + 3 < p.len and zero(p[i] - p[i+1]) and zero(p[i+2] - p[i+3])
+
+proc sharpCorner(p: seq[Point]; i: int): bool =
+  i + 2 < p.len and zero(p[i] - p[i+1]) and zero(p[i+1] - p[i+2])
+
+proc roundLineTo(outPath: var RenderPath; to: Point) =
+  if outPath.pts.len == 0: return
+  let last = outPath.pts[^1]
+  outPath.cubicTo(last, to, to)
+
+proc roundLineCorner(outPath: var RenderPath; prev, curr, next: Point; r: float32): Point =
+  let lenPrev = length(prev - curr)
+  let rPrev = if lenPrev > 0.0'f32: 0.5'f32 * min(lenPrev * 0.5'f32, r) / lenPrev else: 0.0'f32
+  let lenNext = length(next - curr)
+  let rNext = if lenNext > 0.0'f32: 0.5'f32 * min(lenNext * 0.5'f32, r) / lenNext else: 0.0'f32
+  let dPrev = (curr - prev) * rPrev
+  let dNext = (curr - next) * rNext
+  roundLineTo(outPath, curr - dPrev * 2.0'f32)
+  let ret = curr - dNext * 2.0'f32
+  outPath.cubicTo(curr - dPrev, curr - dNext, ret)
+  ret
+
+proc roundCurveCorner(outPath: var RenderPath; prev, ctrl1, curr, next: Point; rounded: bool; roundTo: Point; r: float32): Point =
+  let lenPrev = length(prev - curr)
+  let tPrev = if lenPrev > 0.0'f32: min(lenPrev * 0.5'f32, r) / lenPrev else: 0.0'f32
+  let arcStart = curr + (prev - curr) * tPrev
+  outPath.cubicTo(if rounded: roundTo else: ctrl1, arcStart, arcStart)
+  let lenNext = length(next - curr)
+  let tNext = if lenNext > 0.0'f32: min(lenNext * 0.5'f32, r) / lenNext else: 0.0'f32
+  let arcEnd = curr + (next - curr) * tNext
+  outPath.cubicTo(arcStart + (curr - arcStart) * 0.5'f32, arcEnd + (curr - arcEnd) * 0.5'f32, arcEnd)
+  arcEnd
+
+proc roundPath(inPath: RenderPath; r: float32): RenderPath =
+  if r <= 0.0'f32 or inPath.cmds.len == 0: return inPath
+  result = RenderPath(cmds: @[], pts: @[])
+  result.cmds.setLen(0)
+  result.pts.setLen(0)
+  var startIndex = 0
+  var rounded = false
+  var roundTo = Point(x:0, y:0)
+  var iCmds = 0
+  var iPts = 0
+  while iCmds < inPath.cmds.len:
+    let cmd = inPath.cmds[iCmds]
+    case cmd
+    of PathCommand.MoveTo:
+      startIndex = result.pts.len
+      result.moveTo(inPath.pts[iPts])
+      inc iPts
+    of PathCommand.CubicTo:
+      let hasNext = iCmds < inPath.cmds.len - 1
+      let nextCmd = if hasNext: inPath.cmds[iCmds + 1] else: PathCommand.MoveTo
+      var didRound = false
+      if hasNext and iPts - 1 >= 0 and iPts + 2 < inPath.pts.len:
+        if colinear(inPath.pts, iPts - 1):
+          let prev = inPath.pts[iPts - 1]
+          let curr = inPath.pts[iPts + 2]
+          if nextCmd == PathCommand.CubicTo and iPts + 5 < inPath.pts.len and zero(inPath.pts[iPts + 2] - inPath.pts[iPts + 3]):
+            roundTo = roundLineCorner(result, prev, curr, inPath.pts[iPts + 5], r)
+            iPts += 3
+            rounded = true
+            didRound = true
+          elif nextCmd == PathCommand.Close and startIndex + 2 < inPath.pts.len:
+            roundTo = roundLineCorner(result, prev, curr, inPath.pts[startIndex + 2], r)
+            if startIndex + 1 < result.pts.len and zero(result.pts[startIndex] - result.pts[startIndex + 1]):
+              result.pts[startIndex + 1] = result.pts[^1]
+            result.pts[startIndex] = result.pts[^1]
+            iPts += 3
+            rounded = true
+            didRound = true
+        elif nextCmd == PathCommand.CubicTo and iPts + 5 < inPath.pts.len and sharpCorner(inPath.pts, iPts + 1):
+          roundTo = roundCurveCorner(result, inPath.pts[iPts - 1], inPath.pts[iPts], inPath.pts[iPts + 2], inPath.pts[iPts + 5], rounded, roundTo, r)
+          iPts += 3
+          rounded = true
+          didRound = true
+      if not didRound:
+        result.cubicTo(if rounded: roundTo else: inPath.pts[iPts], inPath.pts[iPts + 1], inPath.pts[iPts + 2])
+        iPts += 3
+        rounded = false
+      inc iCmds
+      continue
+    of PathCommand.Close:
+      result.close()
+    of PathCommand.LineTo:
+      result.lineTo(inPath.pts[iPts])
+      inc iPts
+    rounded = false
+    inc iCmds
+
 proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: LottieBuildCtx) =
   var local = ctx
   # collect group transform and style (fills/strokes/tr). Lottie order varies; MVP collects all.
@@ -485,7 +576,14 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       buildGroup(LottieGroup(child), frameNo, parentScene, local)
     elif child of LottiePathObj:
       let p = LottiePathObj(child)
-      buildPath(acc, p.path.eval(frameNo))
+      if local.roundCorner > 0.0'f32:
+        let tmp = newShape()
+        buildPath(tmp, p.path.eval(frameNo))
+        tmp.rs.path = roundPath(tmp.rs.path, local.roundCorner)
+        acc.rs.path.cmds.add(tmp.rs.path.cmds)
+        acc.rs.path.pts.add(tmp.rs.path.pts)
+      else:
+        buildPath(acc, p.path.eval(frameNo))
       accHas = true
     elif child of LottieRectObj:
       let r = LottieRectObj(child)
@@ -498,13 +596,29 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let e = LottieEllipseObj(child)
       let pos = e.position.eval(frameNo)
       let sz = e.size.eval(frameNo)
-      discard acc.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
+      if local.roundCorner > 0.0'f32:
+        let tmp = newShape()
+        discard tmp.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
+        tmp.rs.path = roundPath(tmp.rs.path, local.roundCorner)
+        acc.rs.path.cmds.add(tmp.rs.path.cmds)
+        acc.rs.path.pts.add(tmp.rs.path.pts)
+      else:
+        discard acc.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
       accHas = true
     elif child of LottiePolystarObj:
       let ps = LottiePolystarObj(child)
-      buildPolystar(acc, ps.position.eval(frameNo), ps.outerRadius.eval(frameNo),
-        ps.innerRadius.eval(frameNo), ps.outerRoundness.eval(frameNo), ps.innerRoundness.eval(frameNo),
-        ps.rotation.eval(frameNo), ps.points.eval(frameNo), ps.starType)
+      if local.roundCorner > 0.0'f32:
+        let tmp = newShape()
+        buildPolystar(tmp, ps.position.eval(frameNo), ps.outerRadius.eval(frameNo),
+          ps.innerRadius.eval(frameNo), ps.outerRoundness.eval(frameNo), ps.innerRoundness.eval(frameNo),
+          ps.rotation.eval(frameNo), ps.points.eval(frameNo), ps.starType)
+        tmp.rs.path = roundPath(tmp.rs.path, local.roundCorner)
+        acc.rs.path.cmds.add(tmp.rs.path.cmds)
+        acc.rs.path.pts.add(tmp.rs.path.pts)
+      else:
+        buildPolystar(acc, ps.position.eval(frameNo), ps.outerRadius.eval(frameNo),
+          ps.innerRadius.eval(frameNo), ps.outerRoundness.eval(frameNo), ps.innerRoundness.eval(frameNo),
+          ps.rotation.eval(frameNo), ps.points.eval(frameNo), ps.starType)
       accHas = true
   flushAcc()
 
