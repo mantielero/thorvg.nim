@@ -109,12 +109,14 @@ proc skewR(m: var Matrix; angleDeg, axisDegIn: float32) =
   m.e21 = (1.0'f32 - a) * e21 - c * m.e22
   m.e22 = b * e21 + (1.0'f32 + a) * m.e22
 
-proc applyTransform(m: var Matrix; t: LottieTransform; frameNo: float32) =
+proc applyTransform(m: var Matrix; t: LottieTransform; frameNo: float32; autoOrient = false) =
   if t == nil: return
   let pos = evalPosition(t, frameNo)
   let anchor = t.anchor.eval(frameNo)
   let sc = evalScale(t, frameNo)
-  let rot = evalRotation(t, frameNo)
+  var rot = evalRotation(t, frameNo)
+  if autoOrient and not t.separate:
+    rot += t.position.angle(frameNo)
   # Lottie: translate(pos) * rotate(autoOrient+rot) * skew * scale(scale/100) * translate(-anchor)
   var mt = identity()
   translate(mt, pt(pos.x, pos.y))
@@ -807,14 +809,14 @@ proc remapFrame(comp: LottieComposition; layer: LottieLayer; frameNo: float32): 
 
 proc layerWorldTransform(layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32): Matrix =
   var m = identity()
-  applyTransform(m, layer.transform, frameNo)
+  applyTransform(m, layer.transform, frameNo, layer.autoOrient)
   var pid = layer.parentId
   var guard = 0
   while pid >= 0 and guard < 32:
     let p = findLayerById(layers, pid)
     if p == nil: break
     var pm = identity()
-    applyTransform(pm, p.transform, frameNo)
+    applyTransform(pm, p.transform, frameNo, p.autoOrient)
     m = pm * m
     pid = p.parentId
     inc guard

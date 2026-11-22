@@ -66,4 +66,5 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **Rounded corner (rd, parcial)**: redondeo de esquinas cúbicas portado de `LottieRoundnessModifier` y aplicado a path/ellipse/polystar en `buildGroup`; rect usa `rx/ry`. No maneja LineTo ni cadena completa de modificadores. Sin cambio en baseline; test2 sigue alto (otro problema dominante).
 - **Pucker/Bloat (pb, básico)**: portado de C++ y aplicado en `flushAcc`; convierte LineTo a CubicTo. Sin cambio en baseline (test13 sigue alto por matte/otros).
 - **Skew transform (sk/sa)**: parseado y aplicado en `applyTransform` con fórmula C++ (`_skew`). Mejora test4 y test5; sin regresiones.
-- **3D transform básico (rx/ry/rz/or)**: parseado/modelado (orient z como prop escalar separada) y aplicado en `applyTransform` usando matriz C++ `_dimension3d`. Mejora test4 (22 -> 14 diffPx) y test10 frames animados; sin regresiones. Falta autoOrient y validación completa de perspectiva 3D.
+- **3D transform básico (rx/ry/rz/or)**: parseado/modelado (orient z como prop escalar separada) y aplicado en `applyTransform` usando matriz C++ `_dimension3d`. Mejora test4 (22 -> 14 diffPx) y test10 frames animados; sin regresiones.
+- **AutoOrient (`ao`)**: parseado en capa y aplicado sumando ángulo de tangente de posición (vector path) a rotación; sin cambio en baseline actual.

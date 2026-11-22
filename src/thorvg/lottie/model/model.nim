@@ -207,6 +207,7 @@ type
     matteSrc*: bool
     mix*: int
     blendMode*: BlendMethod
+    autoOrient*: bool
     inPoint*, outPoint*, startTime*, startFrame*: float32
     timeStretch*: float32
     timeRemap*: LottieGenericProperty[LottieScalarFrame[float32], float32]

@@ -988,6 +988,7 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
   if j.hasKey("sh"): result.h = asFloat(j["sh"])
   if j.hasKey("w"): result.w = asFloat(j["w"])
   if j.hasKey("h"): result.h = asFloat(j["h"])
+  if j.hasKey("ao"): result.autoOrient = asInt(j["ao"], 0) != 0
   if j.hasKey("sc"):
     let sc = j["sc"].getStr("#000000")
     if sc.len == 7 and sc[0] == '#':

@@ -61,6 +61,20 @@ proc bezierAt*(b: Bezier; t: float32): LottiePoint =
   let t2 = t * t
   b.start * (it2 * it) + b.ctrl1 * (3.0'f32 * it2 * t) + b.ctrl2 * (3.0'f32 * it * t2) + b.`end` * (t2 * t)
 
+proc tangent*(b: Bezier; t: float32): LottiePoint =
+  let mt = 1.0'f32 - t
+  let d = t * t
+  let a = -mt * mt
+  let bb = 1.0'f32 - 4.0'f32 * t + 3.0'f32 * d
+  let c = 2.0'f32 * t - 3.0'f32 * d
+  let pt = LottiePoint(x: a * b.start.x + bb * b.ctrl1.x + c * b.ctrl2.x + d * b.`end`.x,
+                       y: a * b.start.y + bb * b.ctrl1.y + c * b.ctrl2.y + d * b.`end`.y)
+  LottiePoint(x: pt.x * 3.0'f32, y: pt.y * 3.0'f32)
+
+proc angle*(b: Bezier; t: float32): float32 =
+  let pt = b.tangent(t)
+  radToDeg(arctan2(pt.y, pt.x))
+
 proc split(b: Bezier; t: float32; left: var Bezier): Bezier =
   left.start = b.start
   left.ctrl1 = b.start + (b.ctrl1 - b.start) * t
@@ -175,6 +189,23 @@ proc interpVector*(f, n: LottieVectorFrame[LottiePoint]; frameNo: float32): Lott
   else:
     return lerp(f.value, n.value, t)
 
+proc angleVector*(f, n: LottieVectorFrame[LottiePoint]; frameNo: float32): float32 =
+  if not f.hasTangent:
+    let dp = n.value - f.value
+    return radToDeg(arctan2(dp.y, dp.x))
+  var t = (frameNo - f.no) / (n.no - f.no)
+  if f.interpolator != nil: t = f.interpolator.progress(t)
+  let p0 = f.value
+  let p1 = f.value + f.outTangent
+  let p2 = n.value + f.inTangent
+  let p3 = n.value
+  let len = if f.length > 0.0'f32: f.length else: bezierLengthApprox(p0,p1,p2,p3)
+  let b = Bezier(start:p0, ctrl1:p1, ctrl2:p2, `end`:p3)
+  var bt = bezAtApproxFn(b, t * len, len)
+  if bt >= 1.0'f32: bt = 0.99'f32
+  elif bt <= 0.0'f32: bt = 0.01'f32
+  b.angle(bt)
+
 proc prepareVector*(f: var LottieVectorFrame[LottiePoint]; next: LottieVectorFrame[LottiePoint]) =
   if f.hasTangent:
     let p0 = f.value
@@ -220,6 +251,23 @@ proc eval*[F,V](p: LottieGenericProperty[F,V]; frameNo: float32): V =
     return interpScalar(f, n, frameNo)
   else:
     return f.value
+
+proc angle*(p: LottieGenericProperty[LottieVectorFrame[LottiePoint], LottiePoint]; frameNo: float32): float32 =
+  if not p.hasFrames or p.frames.len <= 1:
+    return 0.0'f32
+  if frameNo <= p.frames[0].no:
+    return angleVector(p.frames[0], p.frames[1], p.frames[0].no)
+  let last = p.frames.len - 1
+  if frameNo >= p.frames[last].no:
+    return angleVector(p.frames[last - 1], p.frames[last], p.frames[last].no)
+  var lo = 0
+  var hi = last
+  while lo <= hi:
+    let mid = (lo + hi) div 2
+    if p.frames[mid].no < frameNo: lo = mid + 1
+    else: hi = mid - 1
+  let key = max(0, hi)
+  angleVector(p.frames[key], p.frames[key + 1], frameNo)
 
 proc newScalarProp*[T](v: T): LottieGenericProperty[LottieScalarFrame[T], T] =
   result = LottieGenericProperty[LottieScalarFrame[T], T](value: v, hasFrames: false)
