@@ -855,6 +855,12 @@ proc parseEffectPropOpacity(v: JsonNode; defPct: float32 = 100.0'f32): LottieGen
   # effect opacity is usually 0..1 or 0..255 depending on effect; keep as scalar
   parseEffectPropScalar(v, defPct)
 
+proc parseIntScalarProp(v: JsonNode; def: int = 0): LottieGenericProperty[LottieScalarFrame[int], int] =
+  let fp = parseEffectPropScalar(v, float32(def))
+  result = LottieGenericProperty[LottieScalarFrame[int], int](value: int(fp.value), hasFrames: fp.hasFrames)
+  for f in fp.frames:
+    result.frames.add(LottieScalarFrame[int](no: f.no, value: int(f.value), hold: f.hold))
+
 proc parseEffects(j: JsonNode): seq[LottieEffect] =
   result = @[]
   if j.kind != JArray: return
@@ -919,6 +925,29 @@ proc parseEffects(j: JsonNode): seq[LottieEffect] =
         of 3: fx.distance = parseEffectPropScalar(p, 0.0'f32)
         of 4: fx.blurness = parseEffectPropScalar(p, 0.0'f32)
         else: discard
+      result.add(fx)
+    of 22: # Stroke
+      let fx = LottieFxStroke(effectType: etStroke, enable: en,
+        mask: newScalarProp(0), allMask: newScalarProp(0),
+        color: newColorProp(LottieColor(r:1,g:1,b:1)),
+        size: newScalarProp(0.0'f32),
+        opacity: newScalarProp(1.0'f32),
+        begin: newScalarProp(0.0'f32),
+        `end`: newScalarProp(100.0'f32))
+      for i in 0 ..< props.len:
+        let p = props[i]
+        case i
+        of 0: fx.mask = newScalarProp(int(parseEffectPropScalar(p, 0.0'f32).eval(0.0'f32))) # fallback; animated handled below
+        of 1: fx.allMask = newScalarProp(int(parseEffectPropScalar(p, 0.0'f32).eval(0.0'f32)))
+        of 3: fx.color = parseEffectPropColor(p)
+        of 4: fx.size = parseEffectPropScalar(p, 0.0'f32)
+        of 6: fx.opacity = parseEffectPropScalar(p, 1.0'f32)
+        of 7: fx.begin = parseEffectPropScalar(p, 0.0'f32)
+        of 8: fx.`end` = parseEffectPropScalar(p, 100.0'f32)
+        else: discard
+      # reparse mask/allMask as proper scalar props (may be animated)
+      if props.len > 0: fx.mask = parseIntScalarProp(props[0], 0)
+      if props.len > 1: fx.allMask = parseIntScalarProp(props[1], 0)
       result.add(fx)
     of 29: # GaussianBlur
       let fx = LottieFxGaussianBlur(effectType: etGaussianBlur, enable: en,

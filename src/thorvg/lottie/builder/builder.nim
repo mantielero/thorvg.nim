@@ -844,7 +844,7 @@ proc resolveMatteTargets*(layers: seq[LottieLayer]) =
       # Lottie matte target is usually the previous layer in the stack.
       layer.matteTarget = layers[i - 1]
 
-proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32) =
+proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: Matrix) =
   const BLUR_TO_SIGMA = 0.3'f32
   for e in layer.effects:
     if e == nil or not e.enable: continue
@@ -885,6 +885,35 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32) =
       let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
       discard layerScene.dropShadow(int(c.r*255+0.5'f32), int(c.g*255+0.5'f32), int(c.b*255+0.5'f32), op,
                                     fx.angle.eval(frameNo), fx.distance.eval(frameNo), sigma, 100)
+    of etStroke:
+      if layer.masks.len == 0: continue
+      let fx = LottieFxStroke(e)
+      let shape = newShape()
+      let allMask = fx.allMask.eval(frameNo) != 0
+      if allMask:
+        for m in layer.masks:
+          if m == nil or m.mode == MaskMethod.None: continue
+          let path = m.path.eval(frameNo)
+          buildPath(shape, path)
+      else:
+        let idx = fx.mask.eval(frameNo) - 1
+        if idx >= 0 and idx < layer.masks.len:
+          let m = layer.masks[idx]
+          if m != nil and m.mode != MaskMethod.None:
+            let path = m.path.eval(frameNo)
+            buildPath(shape, path)
+      discard shape.transform(world)
+      let begin = fx.begin.eval(frameNo) * 0.01'f32
+      let endv = fx.`end`.eval(frameNo) * 0.01'f32
+      discard shape.trimpath(begin, endv)
+      var sop = fx.opacity.eval(frameNo)
+      if sop > 1.0'f32: sop = sop / 100.0'f32
+      let sa = clamp(int(sop * 255.0'f32 + 0.5'f32), 0, 255)
+      discard shape.strokeFill(255'u8, 255'u8, 255'u8, uint8(sa))
+      discard shape.strokeJoin(StrokeJoin.Round)
+      discard shape.strokeCap(StrokeCap.Round)
+      discard shape.strokeWidth(fx.size.eval(frameNo) * 2.0'f32)
+      discard layerScene.mask(shape, MaskMethod.Alpha)
     else:
       discard
 
@@ -944,7 +973,7 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     if layer.blendMode != BlendMethod.Normal:
       discard outScene.blend(layer.blendMode)
     if layer.effects.len > 0:
-      applyEffects(outScene, layer, frameNo)
+      applyEffects(outScene, layer, frameNo, world)
     if addToRoot:
       discard root.add(outScene)
     outScene

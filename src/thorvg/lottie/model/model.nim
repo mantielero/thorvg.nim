@@ -157,6 +157,8 @@ type
     opacity*: LottieGenericProperty[LottieScalarFrame[float32], float32]
 
   LottieFxStroke* = ref object of LottieEffect
+    mask*: LottieGenericProperty[LottieScalarFrame[int], int]
+    allMask*: LottieGenericProperty[LottieScalarFrame[int], int]
     color*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
     size*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     opacity*: LottieGenericProperty[LottieScalarFrame[float32], float32]

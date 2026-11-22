@@ -68,3 +68,4 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **Skew transform (sk/sa)**: parseado y aplicado en `applyTransform` con fórmula C++ (`_skew`). Mejora test4 y test5; sin regresiones.
 - **3D transform básico (rx/ry/rz/or)**: parseado/modelado (orient z como prop escalar separada) y aplicado en `applyTransform` usando matriz C++ `_dimension3d`. Mejora test4 (22 -> 14 diffPx) y test10 frames animados; sin regresiones.
 - **AutoOrient (`ao`)**: parseado en capa y aplicado sumando ángulo de tangente de posición (vector path) a rotación; sin cambio en baseline actual.
+- **Stroke effect (`ty 22`)**: modelo/parser ampliados (mask/allMask/color/size/opacity/begin/end); builder aplica esqueleto de máscara+stroke solo con máscaras, pero falta rama C++ de color-fill sobre shapes de capa. Sin cambio en baseline (3/19).

@@ -43,7 +43,7 @@
 - Módulo: `src/thorvg/lottie/builder/builder.nim`
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
 - Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones. Mejora: test4 14/pass, test10 frames animados mejoran con 3D.
-- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`)+3D básico(`rx/ry/rz/or`); opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow).
+- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`)+3D básico(`rx/ry/rz/or`)+autoOrient(`ao`); opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow, Stroke ty22 parseado/esqueleto sin color-fill).
 - Mejoras recientes: skew+3D (test4 14/pass, test10 4032/6275/6161/6468/7574). `test12` maxDiff 63; `slot` 225/368/pass/pass/pass.
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
 - Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
