@@ -42,12 +42,12 @@
 - Estado: **en progreso**
 - Módulo: `src/thorvg/lottie/builder/builder.nim`
 - Test: `tests/lottie/test_phase2_builder.nim` → **3/19 pass, 16 fail** (tol canal 2, RGBA vs goldens C++ corregidos).
-- Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones. Mejora: test4 14/pass, test10 frames animados mejoran con 3D.
-- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`)+3D básico(`rx/ry/rz/or`)+autoOrient(`ao`); opacidad de grupo aplicada; masks Lottie básicos (sin expand); mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow, Stroke ty22 parseado/esqueleto sin color-fill).
-- Mejoras recientes: skew+3D (test4 14/pass, test10 4032/6275/6161/6468/7574). `test12` maxDiff 63; `slot` 225/368/pass/pass/pass.
+- Baseline actual: **3/19 pass** (`test14`, `embedded_font`, `segment`), 16 fail, 0 skip. Sin regresiones.
+- Fix reciente: viewport clip root a tamaño target; precomp render (remap st/sr/tm); `applyTransform` scaleR/translateR+skew(`sk/sa`)+3D básico(`rx/ry/rz/or`)+autoOrient(`ao`); opacidad de grupo aplicada; masks Lottie básicos con `expand` acotado; mattes básicos (`tt/tp/td`, `tp` por id, orden matte->wrap->masks); blend mode de capa (`bm`); efectos básicos de capa (`ef`: Tint/Fill/Tritone/GaussianBlur/DropShadow, Stroke ty22 con parseo mn + color-fill recursivo).
+- Mejoras recientes: offset-path acotado para `op`/`mask.expand` (sin regresiones) mejora `test6` (33209/37843/38357/26505/23416) y `test9` (3365/3536/2010). `test10` sin cambio (6275/6161/6468/7574).
 - Hallazgo slot: `upstream/test/res/images/img_0.png` ausente; golden slot f0 sin contenido en área esperada de imagen; probar PNG no cambió diffs. Bloqueado por asset/golden.
-- Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57.
-- Bloqueadores: asset imagen slot, masks expand/mattes, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino, rd paths, rp/mm/pb/op, RenderContext/propagator C++.
+- Cercanos: `audio_layer` f0 1px, `slot` f90-179 9px, `tween` f149 20px, `test11` f110 143/f83.25 815/f55.5 57, `test4` f37.5 14px.
+- Bloqueadores: offset-path completo (dirección/joins/subpaths/casos degenerados), cadena RenderContext/modificadores C++ (rp/rd completo/pb/zz/mm/orden), Stroke effect ty22 validación/casos, image/text layers, slots completos (PathSet/TextDoc/Image/override), gf/gs fino.
 - Implementado: lowering layer shape/null, group/path/rect/ellipse, fill/stroke solid, transform (pos/anchor/scale/rot), opacity, jerarquía parentId, rebuild por frame, scaling comp->target, polystar (sr), trimpath (tm), parse gf/gs/sr/tm/rd/zz/mm/op/rp/pb, rd rects, zz activo, gf/gs aplicados, solid layer básico, precomp render básico.
 - Falta: cobertura completa slots/sids, gf/gs correcto, rd en paths, rp/mm/pb/op, masks/mattes, image/text layers, orden fill/stroke/RenderContext/propagator semantics C++, pooling.
 
