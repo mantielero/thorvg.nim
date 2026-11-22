@@ -30,6 +30,7 @@ type
     trimEnd*: float32
     trimOffset*: float32
     trimSimultaneous*: bool
+    trimComposed*: bool
     hasTrim*: bool
     roundCorner*: float32
     zigzagAmp*: float32
@@ -254,6 +255,8 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
   discard s.close()
 
 proc toColorStops(stops: seq[LottieGradientStop]; opacity: uint8): seq[ColorStop] =
+  ## opacity is 0-100 (Lottie). TODO: C++ uses 0-1->0-255; Nim engine gradient stroke
+  ## rendering is wrong when using full alpha, so keep 0-100 scaling for now.
   result = @[]
   for st in stops:
     let oa = clamp(st.alpha, 0.0'f32, 1.0'f32)
@@ -320,6 +323,21 @@ proc normTrim(v: float32): float32 =
   if x == 0.0'f32: x = 1.0'f32
   x
 
+proc trimSegment(startPct, endPct, offsetDeg: float32): tuple[begin, `end`: float32] =
+  ## C++ LottieTrimpath::segment: returns 0..1+offset range (may exceed 1).
+  var s = clamp(startPct * 0.01'f32, 0.0'f32, 1.0'f32)
+  var e = clamp(endPct * 0.01'f32, 0.0'f32, 1.0'f32)
+  let diff = abs(s - e)
+  if diff <= 0.000001'f32:
+    return (0.0'f32, 0.0'f32)
+  var o = offsetDeg mod 360.0'f32
+  if o < 0.0'f32: o += 360.0'f32
+  o = o / 360.0'f32
+  if abs(o) <= 0.000001'f32 and diff >= 1.0'f32:
+    return (0.0'f32, 1.0'f32)
+  if s > e: swap(s, e)
+  (s + o, e + o)
+
 proc applyStyle(s: Shape; ctx: LottieBuildCtx) =
   if ctx.hasFillGrad:
     discard s.fill(ctx.fillGrad)
@@ -346,12 +364,11 @@ proc applyStyle(s: Shape; ctx: LottieBuildCtx) =
     if ctx.hasStrokeDash:
       discard s.strokeDash(ctx.strokeDashes, ctx.strokeDashOffset)
   if ctx.hasTrim:
-    let off = ctx.trimOffset / 360.0'f32 * 100.0'f32
-    var b = normTrim(ctx.trimStart + off)
-    var e = normTrim(ctx.trimEnd + off)
+    let seg = if ctx.trimComposed: (begin: ctx.trimStart, `end`: ctx.trimEnd)
+              else: trimSegment(ctx.trimStart, ctx.trimEnd, ctx.trimOffset)
     # skip no-op trim
-    if not (b == 0.0'f32 and e == 1.0'f32):
-      discard s.trimpath(b, e, ctx.trimSimultaneous)
+    if not (seg.begin == 0.0'f32 and seg.`end` == 1.0'f32):
+      discard s.trimpath(seg.begin, seg.`end`, ctx.trimSimultaneous)
   if ctx.opacity < 255'u8:
     discard s.opacity(ctx.opacity)
 
