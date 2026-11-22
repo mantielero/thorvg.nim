@@ -35,7 +35,7 @@ proc lerpValue(a, b: LottiePoint3; t: float32): LottiePoint3 {.inline.} = lerp(a
 proc lerpValue(a, b: LottieColor; t: float32): LottieColor {.inline.} = lerp(a,b,t)
 proc lerpValue(a, b: LottiePath; t: float32): LottiePath {.inline.} = lerp(a,b,t)
 proc lerpValue(a, b: uint8; t: float32): uint8 {.inline.} =
-  uint8(clamp(int(lerp(float32(a), float32(b), t) + 0.5'f32), 0, 255))
+  uint8(clamp(int(lerp(float32(a), float32(b), t)), 0, 255))
 
 proc interpScalar*[T](f, n: LottieScalarFrame[T]; frameNo: float32): T =
   var t = (frameNo - f.no) / (n.no - f.no)
