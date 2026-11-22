@@ -64,3 +64,4 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **Fix remap precomp**: `remapFrame` usaba `eval(frameNo) >= 0` con default 0, activando timeRemap en precomps sin `tm`. Corregido a condición C++: `frames.len > 0 or value >= 0.0` (default -1). Sin cambio en baseline actual, pero correcto.
 - **Image layer faltante**: si el asset no carga, se devuelve escena vacía finalizada (no `nil`) para mantener estructura de capa; alineado con C++. Sin cambio en baseline.
 - **Rounded corner (rd, parcial)**: redondeo de esquinas cúbicas portado de `LottieRoundnessModifier` y aplicado a path/ellipse/polystar en `buildGroup`; rect usa `rx/ry`. No maneja LineTo ni cadena completa de modificadores. Sin cambio en baseline; test2 sigue alto (otro problema dominante).
+- **Pucker/Bloat (pb, básico)**: portado de C++ y aplicado en `flushAcc`; convierte LineTo a CubicTo. Sin cambio en baseline (test13 sigue alto por matte/otros).
