@@ -10,6 +10,9 @@ Thumbs.db
 # OpenCode local state
 .opencode/
 
+# Local AI assistance notes
+HELP.md
+
 #  Migration status
 migration/
 
