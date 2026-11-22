@@ -410,6 +410,33 @@ proc parseTransform(j: JsonNode; warnings: var seq[string]; layerName: string): 
     if hasExpr(j["s"]): warnings.add("layer '" & layerName & "': scale has expression, skipped")
     t.scale = parseScalarPointProp(j["s"], lp(100,100))
     if t.scale.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.scale.sid, apply: proc(ov: JsonNode) = t.scale = parseScalarPointProp(ov, lp(100,100))))
+  if j.hasKey("sk"):
+    if hasExpr(j["sk"]): warnings.add("layer '" & layerName & "': skew has expression, skipped")
+    t.skewAngle = parseScalarProp(j["sk"], 0.0'f32)
+    if t.skewAngle.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAngle.sid, apply: proc(ov: JsonNode) = t.skewAngle = parseScalarProp(ov, 0.0'f32)))
+  if j.hasKey("sa"):
+    if hasExpr(j["sa"]): warnings.add("layer '" & layerName & "': skew axis has expression, skipped")
+    t.skewAxis = parseScalarProp(j["sa"], 0.0'f32)
+    if t.skewAxis.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAxis.sid, apply: proc(ov: JsonNode) = t.skewAxis = parseScalarProp(ov, 0.0'f32)))
+  let has3D = j.hasKey("rx") or j.hasKey("ry") or j.hasKey("rz") or j.hasKey("or")
+  if has3D:
+    t.has3D = true
+    if j.hasKey("rx"):
+      if hasExpr(j["rx"]): warnings.add("layer '" & layerName & "': rx has expression, skipped")
+      t.rx = parseScalarProp(j["rx"], 0.0'f32)
+      if t.rx.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rx.sid, apply: proc(ov: JsonNode) = t.rx = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("ry"):
+      if hasExpr(j["ry"]): warnings.add("layer '" & layerName & "': ry has expression, skipped")
+      t.ry = parseScalarProp(j["ry"], 0.0'f32)
+      if t.ry.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.ry.sid, apply: proc(ov: JsonNode) = t.ry = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("rz"):
+      if hasExpr(j["rz"]): warnings.add("layer '" & layerName & "': rz has expression, skipped")
+      t.rotation = parseScalarProp(j["rz"], 0.0'f32)
+      if t.rotation.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rotation.sid, apply: proc(ov: JsonNode) = t.rotation = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("or"):
+      if hasExpr(j["or"]): warnings.add("layer '" & layerName & "': orientation has expression, skipped")
+      t.orient = parseScalarPointProp(j["or"], lp(0,0))
+      if t.orient.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.orient.sid, apply: proc(ov: JsonNode) = t.orient = parseScalarPointProp(ov, lp(0,0))))
 
 proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObject
 

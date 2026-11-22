@@ -27,6 +27,13 @@ type
     anchor*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
     rotation*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
+    skewAngle*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    skewAxis*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    rx*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    ry*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    rz*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    orient*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    has3D*: bool
     separate*: bool
     sepX*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     sepY*: LottieGenericProperty[LottieScalarFrame[float32], float32]
@@ -235,6 +242,13 @@ proc newLottieTransform*(): LottieTransform =
     anchor: newScalarProp(lp(0,0)),
     rotation: newScalarProp(0.0'f32),
     opacity: newScalarProp(255'u8),
+    skewAngle: newScalarProp(0.0'f32),
+    skewAxis: newScalarProp(0.0'f32),
+    rx: newScalarProp(0.0'f32),
+    ry: newScalarProp(0.0'f32),
+    rz: newScalarProp(0.0'f32),
+    orient: newScalarProp(lp(0,0)),
+    has3D: false,
     separate: false,
     sepX: newScalarProp(0.0'f32),
     sepY: newScalarProp(0.0'f32),

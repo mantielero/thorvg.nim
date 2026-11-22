@@ -80,16 +80,54 @@ proc toRgba(c: LottieColor; opacity: uint8): RGBA =
        b: uint8(clamp(int(c.b * 255.0'f32 + 0.5'f32), 0, 255)),
        a: a)
 
+proc skewR(m: var Matrix; angleDeg, axisDegIn: float32) =
+  let angle = -degToRad(angleDeg)
+  let tanVal = tan(angle)
+  var axisDeg = axisDegIn mod 180.0'f32
+  if abs(axisDeg) < 0.01'f32 or abs(axisDeg - 180.0'f32) < 0.01'f32 or abs(axisDeg + 180.0'f32) < 0.01'f32:
+    let cosVal = cos(degToRad(axisDeg))
+    let b = cosVal * cosVal * tanVal
+    m.e12 += b * m.e11
+    m.e22 += b * m.e21
+    return
+  elif abs(axisDeg - 90.0'f32) < 0.01'f32 or abs(axisDeg + 90.0'f32) < 0.01'f32:
+    let sinVal = -sin(degToRad(axisDeg))
+    let c = sinVal * sinVal * tanVal
+    m.e11 -= c * m.e12
+    m.e21 -= c * m.e22
+    return
+  let axis = -degToRad(axisDeg)
+  let cosVal = cos(axis)
+  let sinVal = sin(axis)
+  let a = sinVal * cosVal * tanVal
+  let b = cosVal * cosVal * tanVal
+  let c = sinVal * sinVal * tanVal
+  let e11 = m.e11
+  let e21 = m.e21
+  m.e11 = (1.0'f32 - a) * e11 - c * m.e12
+  m.e12 = b * e11 + (1.0'f32 + a) * m.e12
+  m.e21 = (1.0'f32 - a) * e21 - c * m.e22
+  m.e22 = b * e21 + (1.0'f32 + a) * m.e22
+
 proc applyTransform(m: var Matrix; t: LottieTransform; frameNo: float32) =
   if t == nil: return
   let pos = evalPosition(t, frameNo)
   let anchor = t.anchor.eval(frameNo)
   let sc = evalScale(t, frameNo)
   let rot = evalRotation(t, frameNo)
-  # Lottie: translate(pos) * rotate(rot) * scale(scale/100) * translate(-anchor)
+  # Lottie: translate(pos) * rotate(autoOrient+rot) * skew * scale(scale/100) * translate(-anchor)
   var mt = identity()
   translate(mt, pt(pos.x, pos.y))
   if rot != 0.0'f32: rotate(mt, rot)
+  let skewAngle = t.skewAngle.eval(frameNo)
+  if skewAngle != 0.0'f32:
+    var sa = skewAngle mod 180.0'f32
+    if abs(sa - 90.0'f32) < 0.01'f32 or abs(sa + 90.0'f32) < 0.01'f32:
+      mt = identity()
+      scaleR(mt, pt(0.0'f32, 0.0'f32))
+      m = m * mt
+      return
+    skewR(mt, sa, t.skewAxis.eval(frameNo))
   let sx = sc.x / 100.0'f32
   let sy = sc.y / 100.0'f32
   scaleR(mt, pt(sx, sy))
