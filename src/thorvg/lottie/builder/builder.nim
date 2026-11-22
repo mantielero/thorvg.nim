@@ -2,7 +2,7 @@
 ## No expressions, no masks/mattes/precomps/repeaters/trimpath/gradients yet.
 
 import std/[math, os]
-import ../../core/[types, geom, fill, path]
+import ../../core/[types, geom, fill, path, bezier]
 import ../../renderer/[paint, shape, scene, picture]
 import ../model/[common, model, property]
 
@@ -37,6 +37,10 @@ type
     zigzagPoint*: int
     hasZigzag*: bool
     puckerBloat*: float32
+    offsetPathVal*: float32
+    offsetPathMiter*: float32
+    offsetPathJoin*: StrokeJoin
+    hasOffsetPath*: bool
 
   LottieBuilder* = ref object
     comp*: LottieComposition
@@ -191,6 +195,42 @@ proc buildPath(s: Shape; p: LottiePath) =
       discard s.cubicTo(c1.x, c1.y, c2.x, c2.y, p1.x, p1.y)
   if p.closed:
     discard s.close()
+
+proc lottiePathToRenderPath(p: LottiePath): RenderPath =
+  result = RenderPath(cmds: @[], pts: @[])
+  let n = p.pts.len
+  if n == 0: return
+  result.moveTo(pt(p.pts[0].x, p.pts[0].y))
+  for i in 0 ..< n:
+    let j = (i + 1) mod n
+    if i + 1 >= n and not p.closed: break
+    let p0 = p.pts[i]
+    let p1 = p.pts[j]
+    let c1 = p0 + (if i < p.outTangents.len: p.outTangents[i] else: lp(0,0))
+    let c2 = p1 + (if j < p.inTangents.len: p.inTangents[j] else: lp(0,0))
+    let z1 = abs(c1.x-p0.x) < 0.0001'f32 and abs(c1.y-p0.y) < 0.0001'f32
+    let z2 = abs(c2.x-p1.x) < 0.0001'f32 and abs(c2.y-p1.y) < 0.0001'f32
+    if z1 and z2:
+      result.lineTo(pt(p1.x, p1.y))
+    else:
+      result.cubicTo(pt(c1.x, c1.y), pt(c2.x, c2.y), pt(p1.x, p1.y))
+  if p.closed:
+    result.close()
+
+proc applyRenderPathToShape(s: Shape; rp: RenderPath) =
+  var iPt = 0
+  for cmd in rp.cmds:
+    case cmd
+    of PathCommand.MoveTo:
+      if iPt < rp.pts.len: discard s.moveTo(rp.pts[iPt].x, rp.pts[iPt].y); inc iPt
+    of PathCommand.LineTo:
+      if iPt < rp.pts.len: discard s.lineTo(rp.pts[iPt].x, rp.pts[iPt].y); inc iPt
+    of PathCommand.CubicTo:
+      if iPt + 2 < rp.pts.len:
+        discard s.cubicTo(rp.pts[iPt].x, rp.pts[iPt].y, rp.pts[iPt+1].x, rp.pts[iPt+1].y, rp.pts[iPt+2].x, rp.pts[iPt+2].y)
+        iPt += 3
+    of PathCommand.Close:
+      discard s.close()
 
 proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, innerRound, rotDeg, ptsF: float32; starType: int) =
   let n = max(3, int(round(ptsF)))
@@ -537,6 +577,208 @@ proc roundPath(inPath: RenderPath; r: float32): RenderPath =
     rounded = false
     inc iCmds
 
+type
+  OffsetLine = object
+    pt1, pt2: Point
+  OffsetState = object
+    line: OffsetLine
+    firstLine: OffsetLine
+    movetoOutIndex: int
+    movetoInIndex: int
+    moveto: bool
+
+proc offsetNormal(p1, p2: Point): Point =
+  normal(p1, p2)
+
+proc offsetShift(p1, p2: Point, offset: float32): OffsetLine =
+  let scaled = offsetNormal(p1, p2) * offset
+  OffsetLine(pt1: p1 + scaled, pt2: p2 + scaled)
+
+proc offsetIntersected(line1, line2: OffsetLine; intersection: var Point; inside: var bool): bool =
+  if zero(line1.pt2 - line2.pt1):
+    intersection = line1.pt2
+    inside = true
+    return true
+  const epsilon = 1e-3'f32
+  let denom = (line1.pt2.x - line1.pt1.x) * (line2.pt2.y - line2.pt1.y) - (line1.pt2.y - line1.pt1.y) * (line2.pt2.x - line2.pt1.x)
+  if abs(denom) < epsilon: return false
+  let t = ((line2.pt1.x - line1.pt1.x) * (line2.pt2.y - line2.pt1.y) - (line2.pt1.y - line1.pt1.y) * (line2.pt2.x - line2.pt1.x)) / denom
+  let u = ((line2.pt1.x - line1.pt1.x) * (line1.pt2.y - line1.pt1.y) - (line2.pt1.y - line1.pt1.y) * (line1.pt2.x - line1.pt1.x)) / denom
+  intersection.x = line1.pt1.x + t * (line1.pt2.x - line1.pt1.x)
+  intersection.y = line1.pt1.y + t * (line1.pt2.y - line1.pt1.y)
+  inside = t >= -epsilon and t <= 1.0'f32 + epsilon and u >= -epsilon and u <= 1.0'f32 + epsilon
+  true
+
+proc offsetLineTo(outPath: var RenderPath; to: Point) =
+  if outPath.pts.len == 0: return
+  outPath.cubicTo(outPath.pts[^1], to, to)
+
+proc offsetCorner(outPath: var RenderPath; line, nextLine: OffsetLine; movetoOutIndex: int; nextClose: bool; join: StrokeJoin; miterLimit: float32) =
+  var inside = false
+  var intersect = Point(x:0, y:0)
+  if offsetIntersected(line, nextLine, intersect, inside):
+    if inside:
+      if nextClose:
+        if outPath.pts.len > movetoOutIndex + 1 and zero(outPath.pts[movetoOutIndex] - outPath.pts[movetoOutIndex + 1]):
+          outPath.pts[movetoOutIndex + 1] = intersect
+        if outPath.pts.len > movetoOutIndex:
+          outPath.pts[movetoOutIndex] = intersect
+      offsetLineTo(outPath, intersect)
+    else:
+      offsetLineTo(outPath, line.pt2)
+      if join == StrokeJoin.Round:
+        outPath.cubicTo((line.pt2 + intersect) * 0.5'f32, (nextLine.pt1 + intersect) * 0.5'f32, nextLine.pt1)
+      elif join == StrokeJoin.Miter:
+        let norm = offsetNormal(line.pt1, line.pt2)
+        let nextNorm = offsetNormal(nextLine.pt1, nextLine.pt2)
+        let miterDir = norm + nextNorm
+        let miterLen = sqrt(miterDir.x*miterDir.x + miterDir.y*miterDir.y)
+        if miterLen > 1e-6'f32:
+          let md = miterDir / miterLen
+          if 1.0'f32 <= miterLimit * abs(md.x * norm.x + md.y * norm.y):
+            offsetLineTo(outPath, intersect)
+        offsetLineTo(outPath, nextLine.pt1)
+      else:
+        offsetLineTo(outPath, nextLine.pt1)
+  else:
+    offsetLineTo(outPath, line.pt2)
+
+proc colinearOffset(p: seq[Point]; i: int): bool =
+  if i + 3 >= p.len: return false
+  zero(p[i] - p[i+1]) and zero(p[i+2] - p[i+3])
+
+proc offsetLine(outPath: var RenderPath; inCmds: seq[PathCommand]; inPts: seq[Point]; curPt: var int; curCmd: int; state: var OffsetState; offset: float32; degenerated: bool; join: StrokeJoin; miterLimit: float32) =
+  if curPt - 1 >= 0 and curPt < inPts.len and zero(inPts[curPt - 1] - inPts[curPt]):
+    inc curPt
+    return
+  if curCmd - 1 >= 0 and inCmds[curCmd - 1] != PathCommand.LineTo:
+    state.line = offsetShift(inPts[curPt - 1], inPts[curPt], offset)
+  if state.moveto:
+    state.movetoOutIndex = outPath.pts.len
+    outPath.moveTo(state.line.pt1)
+    state.firstLine = state.line
+    state.moveto = false
+
+  let nonDegeneratedCubic = proc(cmdIdx, ptIdx: int): bool =
+    if cmdIdx < 0 or cmdIdx >= inCmds.len: return false
+    if inCmds[cmdIdx] != PathCommand.CubicTo: return false
+    if ptIdx < 0 or ptIdx + 3 >= inPts.len: return false
+    not zero(inPts[ptIdx] - inPts[ptIdx + 1]) and not zero(inPts[ptIdx + 2] - inPts[ptIdx + 3])
+
+  let degAdj = if degenerated: 1 else: 0
+  if curCmd + 1 >= inCmds.len or inCmds[curCmd + 1] == PathCommand.MoveTo or nonDegeneratedCubic(curCmd + 1, curPt + degAdj):
+    offsetLineTo(outPath, state.line.pt2)
+    inc curPt
+    return
+
+  var nextLine = state.firstLine
+  if curCmd + 1 < inCmds.len:
+    if inCmds[curCmd + 1] == PathCommand.LineTo and curPt + 1 + degAdj < inPts.len:
+      nextLine = offsetShift(inPts[curPt + degAdj], inPts[curPt + 1 + degAdj], offset)
+    elif inCmds[curCmd + 1] == PathCommand.CubicTo and curPt + 2 + degAdj < inPts.len:
+      nextLine = offsetShift(inPts[curPt + 1 + degAdj], inPts[curPt + 2 + degAdj], offset)
+    elif inCmds[curCmd + 1] == PathCommand.Close and curPt + degAdj < inPts.len and state.movetoInIndex + degAdj < inPts.len and not zero(inPts[curPt + degAdj] - inPts[state.movetoInIndex + degAdj]):
+      nextLine = offsetShift(inPts[curPt + degAdj], inPts[state.movetoInIndex + degAdj], offset)
+
+  offsetCorner(outPath, state.line, nextLine, state.movetoOutIndex, curCmd + 1 < inCmds.len and inCmds[curCmd + 1] == PathCommand.Close, join, miterLimit)
+  state.line = nextLine
+  inc curPt
+
+proc offsetCubic(outPath: var RenderPath; pts: seq[Point]; ptStart: int; state: var OffsetState; offset: float32; threshold: float32; pending: var int) =
+  var intersect = Point(x:0, y:0)
+  var stack: seq[bezier.Bezier] = @[]
+  if ptStart < 0 or ptStart + 3 >= pts.len: return
+  stack.add(bezier.Bezier(start: pts[ptStart], ctrl1: pts[ptStart+1], ctrl2: pts[ptStart+2], `end`: pts[ptStart+3]))
+
+  while stack.len > 0:
+    var bz = stack.pop()
+    let blen = length(bz.start, bz.ctrl1) + length(bz.ctrl1, bz.ctrl2) + length(bz.ctrl2, bz.`end`)
+    let blenArc = bezier.length(bz)
+    if blen > threshold * blenArc and blen > 1.0'f32:
+      var leftBz: bezier.Bezier
+      bezier.splitAt(bz, 0.5'f32, leftBz) # leftBz=[0,0.5], bz=[0.5,1]
+      stack.add(bz)
+      stack.add(leftBz)
+      continue
+
+    let deg1 = zero(bz.start - bz.ctrl1)
+    let line1 = if deg1: state.line else: offsetShift(bz.start, bz.ctrl1, offset)
+    let line2 = offsetShift(bz.ctrl1, bz.ctrl2, offset)
+
+    if pending == outPath.pts.len and not state.moveto:
+      var inside = false
+      if not offsetIntersected((if deg1: line2 else: line1), state.line, intersect, inside):
+        intersect = state.line.pt2
+      if outPath.pts.len >= 2:
+        outPath.pts[outPath.pts.len - 2] = intersect
+        outPath.pts[outPath.pts.len - 1] = intersect
+
+    let deg3 = zero(bz.ctrl2 - bz.`end`)
+    state.line = if deg3: line2 else: offsetShift(bz.ctrl2, bz.`end`, offset)
+
+    if state.moveto:
+      state.movetoOutIndex = outPath.pts.len
+      outPath.moveTo(line1.pt1)
+      state.firstLine = line1
+      state.moveto = false
+
+    var inside2 = false
+    if deg1:
+      if outPath.pts.len > 0: outPath.pts.add(outPath.pts[^1])
+      else: outPath.pts.add(line1.pt1)
+    else:
+      discard offsetIntersected(line1, line2, intersect, inside2)
+      outPath.pts.add(intersect)
+
+    if deg3:
+      intersect = state.line.pt2
+      pending = outPath.pts.len + 2
+    else:
+      var inside3 = false
+      discard offsetIntersected(line2, state.line, intersect, inside3)
+    outPath.pts.add(intersect)
+    outPath.pts.add(state.line.pt2)
+    outPath.cmds.add(PathCommand.CubicTo)
+
+proc offsetPath(inPath: RenderPath; offset: float32; join: StrokeJoin = StrokeJoin.Round; miterLimit: float32 = 4.0'f32): RenderPath =
+  ## C++ LottieOffsetModifier-like path offset. Bounded implementation.
+  if offset == 0.0'f32 or inPath.cmds.len == 0: return inPath
+  result = RenderPath(cmds: @[], pts: @[])
+  if inPath.pts.len == 0: return result
+
+  # Determine winding (clockwise) from path points
+  var area = 0.0'f32
+  for i in 0 ..< max(0, inPath.pts.len - 1):
+    area += cross(inPath.pts[i], inPath.pts[i+1])
+  if inPath.pts.len > 0:
+    area += cross(inPath.pts[^1], inPath.pts[0])
+  let off = if area < 0.0'f32: offset else: -offset
+  let threshold = 1.0'f32 / abs(off) + 1.0'f32
+
+  var state = OffsetState(movetoOutIndex: 0, movetoInIndex: 0, moveto: false)
+  var pending = -1
+  var iPt = 0
+  for iCmd in 0 ..< inPath.cmds.len:
+    case inPath.cmds[iCmd]
+    of PathCommand.MoveTo:
+      state.moveto = true
+      state.movetoInIndex = iPt
+      inc iPt
+    of PathCommand.LineTo:
+      offsetLine(result, inPath.cmds, inPath.pts, iPt, iCmd, state, off, false, join, miterLimit)
+    of PathCommand.CubicTo:
+      if iPt - 1 >= 0 and iPt + 2 < inPath.pts.len and colinearOffset(inPath.pts, iPt - 1):
+        inc iPt
+        offsetLine(result, inPath.cmds, inPath.pts, iPt, iCmd, state, off, true, join, miterLimit)
+        inc iPt
+      else:
+        offsetCubic(result, inPath.pts, iPt - 1, state, off, threshold, pending)
+        iPt += 3
+    of PathCommand.Close:
+      if iPt - 1 >= 0 and state.movetoInIndex < inPath.pts.len and not zero(inPath.pts[iPt - 1] - inPath.pts[state.movetoInIndex]):
+        offsetCorner(result, state.line, state.firstLine, state.movetoOutIndex, true, join, miterLimit)
+      result.cmds.add(PathCommand.Close)
+
 proc puckerBloatCenter(cmds: seq[PathCommand]; pts: seq[Point]): Point =
   var center = Point(x:0, y:0)
   var count = 0
@@ -698,6 +940,13 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let pb = LottiePuckerBloatObj(child)
       if not pb.hidden:
         local.puckerBloat = pb.amount.eval(frameNo)
+    elif child of LottieOffsetPathObj:
+      let op = LottieOffsetPathObj(child)
+      if not op.hidden:
+        local.offsetPathVal = op.offset.eval(frameNo)
+        local.offsetPathMiter = op.miterLimit
+        local.offsetPathJoin = if op.join == 1: StrokeJoin.Bevel elif op.join == 2: StrokeJoin.Round else: StrokeJoin.Miter
+        local.hasOffsetPath = local.offsetPathVal != 0.0'f32
   var acc = newShape()
   var accHas = false
   proc flushAcc() =
@@ -706,6 +955,8 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       acc.rs.path = puckerBloatPath(acc.rs.path, local.puckerBloat)
     if local.hasZigzag and local.zigzagAmp != 0.0'f32 and local.zigzagFreq > 0.0'f32:
       acc.rs.path = applyZigZag(acc.rs.path, local.zigzagAmp, local.zigzagFreq, local.zigzagPoint)
+    if local.hasOffsetPath and local.offsetPathVal != 0.0'f32:
+      acc.rs.path = offsetPath(acc.rs.path, local.offsetPathVal, local.offsetPathJoin, local.offsetPathMiter)
     applyStyle(acc, local)
     discard acc.transform(local.transform)
     discard parentScene.add(acc)
@@ -926,7 +1177,7 @@ proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: 
     if mask == nil or mask.mode == MaskMethod.None: continue
     let maskMode = mask.mode
     let opacity = mask.opacity.eval(frameNo)
-    # TODO: mask.expand (offset path)
+    let expand = mask.expand.eval(frameNo)
     if pShape == nil:
       pShape = newShape()
       let compMethod = if maskMode == MaskMethod.Subtract or maskMode == MaskMethod.InvAlpha: MaskMethod.InvAlpha else: MaskMethod.Alpha
@@ -936,7 +1187,12 @@ proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: 
       discard pShape.mask(shape, maskMode)
       pShape = shape
     let path = mask.path.eval(frameNo)
-    buildPath(pShape, path)
+    if expand != 0.0'f32:
+      let rp = lottiePathToRenderPath(path)
+      let orp = offsetPath(rp, expand)
+      applyRenderPathToShape(pShape, orp)
+    else:
+      buildPath(pShape, path)
     discard pShape.fill(255'u8, 255'u8, 255'u8, opacity)
     discard pShape.transform(world)
     pOpacity = opacity
