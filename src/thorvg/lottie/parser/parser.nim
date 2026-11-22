@@ -779,13 +779,27 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     return op
   of "rp":
     let rp = LottieRepeaterObj(objType: otRepeater, name: nm, hidden: hd,
-      copies: newScalarProp(0.0'f32), offset: newScalarProp(0.0'f32))
+      copies: newScalarProp(0.0'f32), offset: newScalarProp(0.0'f32),
+      position: newScalarProp(lp(0,0)), anchor: newScalarProp(lp(0,0)),
+      scale: newScalarProp(lp(100,100)), rotation: newScalarProp(0.0'f32),
+      startOpacity: newScalarProp(100.0'f32), endOpacity: newScalarProp(100.0'f32),
+      inorder: true)
     if j.hasKey("c"):
       rp.copies = parseScalarProp(j["c"], 0.0'f32)
       if rp.copies.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: rp.copies.sid, apply: proc(ov: JsonNode) = rp.copies = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("o"):
       rp.offset = parseScalarProp(j["o"], 0.0'f32)
       if rp.offset.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: rp.offset.sid, apply: proc(ov: JsonNode) = rp.offset = parseScalarProp(ov, 0.0'f32)))
+    if j.hasKey("m"):
+      rp.inorder = asInt(j["m"], 1) == 2
+    if j.hasKey("tr") and j["tr"].kind == JObject:
+      let tr = j["tr"]
+      if tr.hasKey("a"): rp.anchor = parseScalarPointProp(tr["a"], lp(0,0))
+      if tr.hasKey("p"): rp.position = parseScalarPointProp(tr["p"], lp(0,0))
+      if tr.hasKey("r"): rp.rotation = parseScalarProp(tr["r"], 0.0'f32)
+      if tr.hasKey("s"): rp.scale = parseScalarPointProp(tr["s"], lp(100,100))
+      if tr.hasKey("so"): rp.startOpacity = parseScalarProp(tr["so"], 100.0'f32)
+      if tr.hasKey("eo"): rp.endOpacity = parseScalarProp(tr["eo"], 100.0'f32)
     return rp
   of "pb":
     let pb = LottiePuckerBloatObj(objType: otPuckerBloat, name: nm, hidden: hd,
@@ -899,14 +913,15 @@ proc parseEffects(j: JsonNode): seq[LottieEffect] =
         bright: newColorProp(LottieColor(r:1,g:1,b:1)),
         midtone: newColorProp(LottieColor(r:0.5,g:0.5,b:0.5)),
         dark: newColorProp(LottieColor(r:0,g:0,b:0)),
-        blend: newScalarProp(100.0'f32))
+        blend: newScalarProp(uint8(0)))
       for i in 0 ..< props.len:
         let p = props[i]
+        let pv = if p.kind == JObject and p.hasKey("v"): p["v"] else: p
         case i
         of 0: fx.bright = parseEffectPropColor(p)
         of 1: fx.midtone = parseEffectPropColor(p)
         of 2: fx.dark = parseEffectPropColor(p)
-        of 3: fx.blend = parseEffectPropScalar(p, 100.0'f32)
+        of 3: fx.blend = parseOpacityProp(pv, 0.0'f32)
         else: discard
       result.add(fx)
     of 25: # DropShadow

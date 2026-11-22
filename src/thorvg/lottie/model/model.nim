@@ -136,6 +136,14 @@ type
   LottieRepeaterObj* = ref object of LottieObject
     copies*: LottieGenericProperty[LottieScalarFrame[float32], float32]
     offset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    # transform
+    position*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    anchor*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    scale*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    rotation*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    startOpacity*: LottieGenericProperty[LottieScalarFrame[float32], float32] # 0-100
+    endOpacity*: LottieGenericProperty[LottieScalarFrame[float32], float32] # 0-100
+    inorder*: bool
 
   LottiePuckerBloatObj* = ref object of LottieObject
     amount*: LottieGenericProperty[LottieScalarFrame[float32], float32]
@@ -169,7 +177,7 @@ type
     bright*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
     midtone*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
     dark*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
-    blend*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    blend*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
 
   LottieFxGaussianBlur* = ref object of LottieEffect
     blurness*: LottieGenericProperty[LottieScalarFrame[float32], float32]

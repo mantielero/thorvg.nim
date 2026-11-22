@@ -42,6 +42,7 @@ type
     offsetPathMiter*: float32
     offsetPathJoin*: StrokeJoin
     hasOffsetPath*: bool
+    strokeFirst*: bool
 
   LottieBuilder* = ref object
     comp*: LottieComposition
@@ -187,13 +188,8 @@ proc buildPath(s: Shape; p: LottiePath) =
     let p1 = p.pts[j]
     let c1 = p0 + (if i < p.outTangents.len: p.outTangents[i] else: lp(0,0))
     let c2 = p1 + (if j < p.inTangents.len: p.inTangents[j] else: lp(0,0))
-    # if tangents are zero, lineTo
-    let z1 = abs(c1.x-p0.x) < 0.0001'f32 and abs(c1.y-p0.y) < 0.0001'f32
-    let z2 = abs(c2.x-p1.x) < 0.0001'f32 and abs(c2.y-p1.y) < 0.0001'f32
-    if z1 and z2:
-      discard s.lineTo(p1.x, p1.y)
-    else:
-      discard s.cubicTo(c1.x, c1.y, c2.x, c2.y, p1.x, p1.y)
+    # C++ PathSet always emits cubicTo, even for straight segments (zero tangents).
+    discard s.cubicTo(c1.x, c1.y, c2.x, c2.y, p1.x, p1.y)
   if p.closed:
     discard s.close()
 
@@ -209,12 +205,8 @@ proc lottiePathToRenderPath(p: LottiePath): RenderPath =
     let p1 = p.pts[j]
     let c1 = p0 + (if i < p.outTangents.len: p.outTangents[i] else: lp(0,0))
     let c2 = p1 + (if j < p.inTangents.len: p.inTangents[j] else: lp(0,0))
-    let z1 = abs(c1.x-p0.x) < 0.0001'f32 and abs(c1.y-p0.y) < 0.0001'f32
-    let z2 = abs(c2.x-p1.x) < 0.0001'f32 and abs(c2.y-p1.y) < 0.0001'f32
-    if z1 and z2:
-      result.lineTo(pt(p1.x, p1.y))
-    else:
-      result.cubicTo(pt(c1.x, c1.y), pt(c2.x, c2.y), pt(p1.x, p1.y))
+    # C++ PathSet always emits cubicTo, even for straight segments.
+    result.cubicTo(pt(c1.x, c1.y), pt(c2.x, c2.y), pt(p1.x, p1.y))
   if p.closed:
     result.close()
 
@@ -234,25 +226,106 @@ proc applyRenderPathToShape(s: Shape; rp: RenderPath) =
       discard s.close()
 
 proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, innerRound, rotDeg, ptsF: float32; starType: int) =
-  let n = max(3, int(round(ptsF)))
-  let rot = deg2rad(rotDeg - 90.0'f32)
+  ## C++-faithful polystar/polygon. Fractional points and roundness supported.
+  ## C++ applies transform (pos+rot) as matrix; here we apply pos/rot inline (no scale/skew).
+  const POLYSTAR_MAGIC = 0.47829'f32 / 0.28'f32
+  const POLYGON_MAGIC = 0.25'f32
   let isStar = starType == 1
-  let step = if isStar: PI / float32(n) else: 2.0'f32 * PI / float32(n)
-  var angle = rot
-  var first = true
-  let count = if isStar: n * 2 else: n
-  for i in 0 ..< count:
-    let useOuter = (not isStar) or (i mod 2 == 0)
-    let r = if useOuter: outerR else: innerR
-    let x = pos.x + r * cos(angle)
-    let y = pos.y + r * sin(angle)
-    if first:
-      discard s.moveTo(x, y)
-      first = false
+  let direction = 1.0'f32 # clockwise default; Nim model lacks clockwise field
+  let baseAngle = deg2rad(rotDeg - 90.0'f32)
+
+  if not isStar:
+    # Polygon: C++ uses int(floor(ptsCnt))
+    let ptsCnt = int(floor(ptsF))
+    if ptsCnt < 1: return
+    let outerRoundness = outerRound * 0.01'f32
+    let anglePerPoint = 2.0'f32 * PI / float32(ptsCnt)
+    let hasRoundness = abs(outerRoundness) > 0.00001'f32
+    var angle = baseAngle
+    var x = outerR * cos(angle)
+    var y = outerR * sin(angle)
+    angle += anglePerPoint * direction
+    discard s.moveTo(pos.x + x, pos.y + y)
+    let coeff = anglePerPoint * outerR * outerRoundness * POLYGON_MAGIC
+    for i in 0 ..< ptsCnt:
+      let prevX = x; let prevY = y
+      x = outerR * cos(angle)
+      y = outerR * sin(angle)
+      if hasRoundness:
+        let cp1Theta = arctan2(prevY, prevX) - PI * 0.5'f32 * direction
+        let cp1x = coeff * cos(cp1Theta)
+        let cp1y = coeff * sin(cp1Theta)
+        let cp2Theta = arctan2(y, x) - PI * 0.5'f32 * direction
+        let cp2x = coeff * cos(cp2Theta)
+        let cp2y = coeff * sin(cp2Theta)
+        discard s.cubicTo(pos.x + prevX - cp1x, pos.y + prevY - cp1y,
+                          pos.x + x + cp2x, pos.y + y + cp2y,
+                          pos.x + x, pos.y + y)
+      else:
+        discard s.cubicTo(pos.x + prevX, pos.y + prevY, pos.x + x, pos.y + y, pos.x + x, pos.y + y)
+      angle += anglePerPoint * direction
+    discard s.close()
+  else:
+    # Star
+    let ptsCntF = ptsF
+    if ptsCntF < 1.0'f32: return
+    let innerRoundness = innerRound * 0.01'f32
+    let outerRoundness = outerRound * 0.01'f32
+    var angle = baseAngle
+    let anglePerPoint = 2.0'f32 * PI / ptsCntF
+    let halfAnglePerPoint = anglePerPoint * 0.5'f32
+    let partialPointAmount = ptsCntF - floor(ptsCntF)
+    var longSegment = false
+    let numPoints = int(ceil(ptsCntF)) * 2
+    let hasRoundness = abs(innerRoundness) > 0.00001'f32 or abs(outerRoundness) > 0.00001'f32
+    var partialPointRadius = 0.0'f32
+    var x, y: float32
+    if abs(partialPointAmount) > 0.00001'f32:
+      angle += halfAnglePerPoint * (1.0'f32 - partialPointAmount) * direction
+    if abs(partialPointAmount) > 0.00001'f32:
+      partialPointRadius = innerR + partialPointAmount * (outerR - innerR)
+      x = partialPointRadius * cos(angle)
+      y = partialPointRadius * sin(angle)
+      angle += anglePerPoint * partialPointAmount * 0.5'f32 * direction
     else:
-      discard s.lineTo(x, y)
-    angle += step
-  discard s.close()
+      x = outerR * cos(angle)
+      y = outerR * sin(angle)
+      angle += halfAnglePerPoint * direction
+    discard s.moveTo(pos.x + x, pos.y + y)
+    for i in 0 ..< numPoints:
+      var radius = if longSegment: outerR else: innerR
+      var dTheta = halfAnglePerPoint
+      if abs(partialPointRadius) > 0.00001'f32 and i == numPoints - 2:
+        dTheta = anglePerPoint * partialPointAmount * 0.5'f32
+      if abs(partialPointRadius) > 0.00001'f32 and i == numPoints - 1:
+        radius = partialPointRadius
+      let prevX = x; let prevY = y
+      x = radius * cos(angle)
+      y = radius * sin(angle)
+      if hasRoundness:
+        let cp1Theta = arctan2(prevY, prevX) - PI * 0.5'f32 * direction
+        let cp1Dx = cos(cp1Theta); let cp1Dy = sin(cp1Theta)
+        let cp2Theta = arctan2(y, x) - PI * 0.5'f32 * direction
+        let cp2Dx = cos(cp2Theta); let cp2Dy = sin(cp2Theta)
+        let cp1Roundness = if longSegment: innerRoundness else: outerRoundness
+        let cp2Roundness = if longSegment: outerRoundness else: innerRoundness
+        let cp1Radius = if longSegment: innerR else: outerR
+        let cp2Radius = if longSegment: outerR else: innerR
+        var cp1x = cp1Radius * cp1Roundness * POLYSTAR_MAGIC * cp1Dx / ptsCntF
+        var cp1y = cp1Radius * cp1Roundness * POLYSTAR_MAGIC * cp1Dy / ptsCntF
+        var cp2x = cp2Radius * cp2Roundness * POLYSTAR_MAGIC * cp2Dx / ptsCntF
+        var cp2y = cp2Radius * cp2Roundness * POLYSTAR_MAGIC * cp2Dy / ptsCntF
+        if abs(partialPointAmount) > 0.00001'f32 and (i == 0 or i == numPoints - 1):
+          cp1x *= partialPointAmount; cp1y *= partialPointAmount
+          cp2x *= partialPointAmount; cp2y *= partialPointAmount
+        discard s.cubicTo(pos.x + prevX - cp1x, pos.y + prevY - cp1y,
+                          pos.x + x + cp2x, pos.y + y + cp2y,
+                          pos.x + x, pos.y + y)
+      else:
+        discard s.cubicTo(pos.x + prevX, pos.y + prevY, pos.x + x, pos.y + y, pos.x + x, pos.y + y)
+      angle += dTheta * direction
+      longSegment = not longSegment
+    discard s.close()
 
 proc toColorStops(stops: seq[LottieGradientStop]; opacity: uint8): seq[ColorStop] =
   ## opacity is 0-100 (Lottie). TODO: C++ uses 0-1->0-255; Nim engine gradient stroke
@@ -363,6 +436,8 @@ proc applyStyle(s: Shape; ctx: LottieBuildCtx) =
     discard s.strokeMiterlimit(ctx.strokeMiter)
     if ctx.hasStrokeDash:
       discard s.strokeDash(ctx.strokeDashes, ctx.strokeDashOffset)
+  if ctx.strokeFirst and (ctx.hasStroke or ctx.hasStrokeGrad) and ctx.strokeWidth > 0.0'f32:
+    discard s.order(true)
   if ctx.hasTrim:
     let seg = if ctx.trimComposed: (begin: ctx.trimStart, `end`: ctx.trimEnd)
               else: trimSegment(ctx.trimStart, ctx.trimEnd, ctx.trimOffset)
@@ -861,28 +936,127 @@ proc puckerBloatPath(inPath: RenderPath; amount: float32): RenderPath =
       result.cmds.add(PathCommand.Close)
 
 proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: LottieBuildCtx) =
+  ## Paso 1: reverse child traversal to match C++ LottieBuilder temporal semantics.
+  ## Style/transform/modifier updates mutate local propagator state at visit time.
+  ## Geometry/groups are collected as draw acts and emitted in forward order
+  ## (equivalent to C++ reverse iteration + add-at-processing-time).
   var local = ctx
-  # collect group transform and style (fills/strokes/tr). Lottie order varies; MVP collects all.
-  for child in g.children:
+  type DrawActKind = enum akShape, akGroup
+  type DrawAct = object
+    case kind: DrawActKind
+    of akShape: shp: Shape
+    of akGroup: grp: LottieGroup
+  type RepeaterInfo = object
+    cnt: int
+    offset: float32
+    position: LottiePoint
+    anchor: LottiePoint
+    scale: LottiePoint
+    rotation: float32
+    startOpacity: uint8
+    endOpacity: uint8
+    inorder: bool
+    baseTransform: Matrix
+  var repeaters: seq[RepeaterInfo] = @[] # active repeaters (reverse-pass order)
+  var acts: seq[DrawAct] = @[]
+  var acc = newShape()
+  var accHas = false
+
+  proc applyRepeaters(shp: Shape): seq[Shape] =
+    if repeaters.len == 0:
+      return @[shp]
+    var propagators: seq[Shape] = @[shp]
+    for ri in countdown(repeaters.len - 1, 0):
+      let r = repeaters[ri]
+      let last = (ri == 0)
+      if r.cnt <= 0:
+        propagators.setLen(0)
+        break
+      var invBase: Matrix
+      discard inverse(r.baseTransform, invBase)
+      var shapes: seq[Shape] = @[]
+      for i in 0 ..< r.cnt:
+        let multiplier = r.offset + float32(i)
+        let tval = if r.cnt <= 1: 1.0'f32 else: float32(i + 1) / float32(r.cnt)
+        let sop = int(r.startOpacity)
+        let eop = int(r.endOpacity)
+        let opacity = uint8(clamp(sop + int(float32(eop - sop) * tval + 0.5'f32), 0, 255))
+        var m = identity()
+        translate(m, Point(x: r.position.x * multiplier + r.anchor.x, y: r.position.y * multiplier + r.anchor.y))
+        scale(m, Point(x: pow(r.scale.x * 0.01'f32, multiplier), y: pow(r.scale.y * 0.01'f32, multiplier)))
+        rotate(m, r.rotation * multiplier)
+        translateR(m, Point(x: -r.anchor.x, y: -r.anchor.y))
+        let trM = r.baseTransform * m
+        for p in propagators:
+          let ns = newShape()
+          ns.rs = p.rs
+          ns.opacity = uint8((int(p.opacity) * int(opacity)) div 255)
+          let curT = p.transform()
+          discard ns.transform(trM * (invBase * curT))
+          shapes.add(ns)
+      propagators = @[]
+      if not last:
+        propagators = shapes
+      else:
+        var outShapes: seq[Shape] = @[]
+        if r.inorder:
+          for s in shapes: outShapes.add(s)
+        else:
+          for i2 in countdown(shapes.len - 1, 0): outShapes.add(shapes[i2])
+        return outShapes
+    return propagators
+
+  proc flushAcc() =
+    if not accHas: return
+    if local.puckerBloat != 0.0'f32:
+      acc.rs.path = puckerBloatPath(acc.rs.path, local.puckerBloat)
+    if local.hasZigzag and local.zigzagAmp != 0.0'f32 and local.zigzagFreq > 0.0'f32:
+      acc.rs.path = applyZigZag(acc.rs.path, local.zigzagAmp, local.zigzagFreq, local.zigzagPoint)
+    if local.hasOffsetPath and local.offsetPathVal != 0.0'f32:
+      acc.rs.path = offsetPath(acc.rs.path, local.offsetPathVal, local.offsetPathJoin, local.offsetPathMiter)
+    applyStyle(acc, local)
+    discard acc.transform(local.transform)
+    let expanded = applyRepeaters(acc)
+    for s in expanded:
+      acts.add(DrawAct(kind: akShape, shp: s))
+    acc = newShape()
+    accHas = false
+
+  proc breakMerge() =
+    # C++ clears ctx->merging on style/transform/modifier changes.
+    if accHas: flushAcc()
+
+  for i in countdown(g.children.high, 0):
+    let child = g.children[i]
     if child == nil: continue
+
     if child of LottieTransform:
+      if child.hidden: continue
+      breakMerge()
       let t = LottieTransform(child)
       var m = local.transform
       applyTransform(m, t, frameNo)
       local.transform = m
       let op = layerOpacity(t, frameNo)
       local.opacity = uint8((int(local.opacity) * int(op)) div 255)
+
     elif child of LottieFillObj:
       let f = LottieFillObj(child)
       if not f.hidden:
+        breakMerge()
         let c = f.color.eval(frameNo)
         let o = f.opacity.eval(frameNo)
         local.fillColor = toRgba(c, o)
         local.hasFill = true
         local.fillRule = if f.fillRule == 2: FillRule.EvenOdd else: FillRule.NonZero
+        # C++: if (ctx->propagator->strokeWidth() > 0) ctx->propagator->order(true);
+        if local.strokeWidth > 0.0'f32:
+          local.strokeFirst = true
+
     elif child of LottieStrokeObj:
       let st = LottieStrokeObj(child)
       if not st.hidden:
+        breakMerge()
         let c = st.color.eval(frameNo)
         let o = st.opacity.eval(frameNo)
         local.strokeColor = toRgba(c, o)
@@ -898,16 +1072,26 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
             local.strokeDashes.add(max(0.0'f32, d.eval(frameNo)))
           local.strokeDashOffset = st.dashOffset.eval(frameNo)
           local.hasStrokeDash = true
+        else:
+          local.hasStrokeDash = false
+          local.strokeDashes.setLen(0)
+          local.strokeDashOffset = 0.0'f32
+
     elif child of LottieGradientFillObj:
       let gf = LottieGradientFillObj(child)
       if not gf.hidden:
+        breakMerge()
         local.fillGrad = makeGradient(gf, frameNo)
         local.hasFillGrad = true
         local.hasFill = false
         local.fillRule = if gf.fillRule == 2: FillRule.EvenOdd else: FillRule.NonZero
+        if local.strokeWidth > 0.0'f32:
+          local.strokeFirst = true
+
     elif child of LottieGradientStrokeObj:
       let gs = LottieGradientStrokeObj(child)
       if not gs.hidden:
+        breakMerge()
         local.strokeGrad = makeStrokeGradient(gs, frameNo)
         local.hasStrokeGrad = true
         local.hasStroke = true
@@ -921,20 +1105,27 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
             local.strokeDashes.add(max(0.0'f32, d.eval(frameNo)))
           local.strokeDashOffset = gs.dashOffset.eval(frameNo)
           local.hasStrokeDash = true
+        else:
+          local.hasStrokeDash = false
+          local.strokeDashes.setLen(0)
+          local.strokeDashOffset = 0.0'f32
+
     elif child of LottieTrimpathObj:
       let tm = LottieTrimpathObj(child)
       if not tm.hidden:
+        breakMerge()
         let off = tm.offset.eval(frameNo) / 360.0'f32 * 100.0'f32
         var nb = normTrim(tm.start.eval(frameNo) + off)
         var ne = normTrim(tm.`end`.eval(frameNo) + off)
         if local.hasTrim:
-          # compose into existing trim range (C++ LottieBuilder::updateTrimpath)
+          # Reverse pass visits later-array trim first; compose existing(later) into new(earlier)
+          # to preserve legacy/C++-observed composition order that matches goldens.
           let curOff = local.trimOffset / 360.0'f32 * 100.0'f32
           let cb = normTrim(local.trimStart + curOff)
           let ce = normTrim(local.trimEnd + curOff)
-          let len = abs(cb - ce)
-          local.trimStart = (len * nb + cb) * 100.0'f32
-          local.trimEnd = (len * ne + cb) * 100.0'f32
+          let len = abs(nb - ne)
+          local.trimStart = (len * cb + nb) * 100.0'f32
+          local.trimEnd = (len * ce + nb) * 100.0'f32
           local.trimOffset = 0.0'f32
         else:
           local.trimStart = tm.start.eval(frameNo)
@@ -942,55 +1133,64 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
           local.trimOffset = tm.offset.eval(frameNo)
         local.trimSimultaneous = (tm.mode != 2)
         local.hasTrim = true
+
     elif child of LottieRoundedCornerObj:
       let rd = LottieRoundedCornerObj(child)
       if not rd.hidden:
+        breakMerge()
         local.roundCorner = rd.radius.eval(frameNo)
+
     elif child of LottieZigZagObj:
       let zz = LottieZigZagObj(child)
       if not zz.hidden:
+        breakMerge()
         local.hasZigzag = true
         local.zigzagAmp = zz.amplitude.eval(frameNo)
         local.zigzagFreq = zz.frequency.eval(frameNo)
         local.zigzagPoint = zz.pointType
+
     elif child of LottiePuckerBloatObj:
       let pb = LottiePuckerBloatObj(child)
       if not pb.hidden:
+        breakMerge()
         local.puckerBloat = pb.amount.eval(frameNo)
+
     elif child of LottieOffsetPathObj:
       let op = LottieOffsetPathObj(child)
       if not op.hidden:
+        breakMerge()
         local.offsetPathVal = op.offset.eval(frameNo)
         local.offsetPathMiter = op.miterLimit
         local.offsetPathJoin = if op.join == 1: StrokeJoin.Bevel elif op.join == 2: StrokeJoin.Round else: StrokeJoin.Miter
         local.hasOffsetPath = local.offsetPathVal != 0.0'f32
-  type DrawActKind = enum akShape, akGroup
-  type DrawAct = object
-    case kind: DrawActKind
-    of akShape: shp: Shape
-    of akGroup: grp: LottieGroup
-  var acts: seq[DrawAct] = @[]
-  var acc = newShape()
-  var accHas = false
-  proc flushAcc() =
-    if not accHas: return
-    if local.puckerBloat != 0.0'f32:
-      acc.rs.path = puckerBloatPath(acc.rs.path, local.puckerBloat)
-    if local.hasZigzag and local.zigzagAmp != 0.0'f32 and local.zigzagFreq > 0.0'f32:
-      acc.rs.path = applyZigZag(acc.rs.path, local.zigzagAmp, local.zigzagFreq, local.zigzagPoint)
-    if local.hasOffsetPath and local.offsetPathVal != 0.0'f32:
-      acc.rs.path = offsetPath(acc.rs.path, local.offsetPathVal, local.offsetPathJoin, local.offsetPathMiter)
-    applyStyle(acc, local)
-    discard acc.transform(local.transform)
-    acts.add(DrawAct(kind: akShape, shp: acc))
-    acc = newShape()
-    accHas = false
-  for child in g.children:
-    if child == nil or child.hidden: continue
-    if child of LottieGroup:
+
+    elif child of LottieRepeaterObj:
+      let rp = LottieRepeaterObj(child)
+      if not rp.hidden:
+        breakMerge()
+        let cnt = max(0, int(round(rp.copies.eval(frameNo))))
+        let so = uint8(clamp(int(rp.startOpacity.eval(frameNo) * 2.55'f32 + 0.5'f32), 0, 255))
+        let eo = uint8(clamp(int(rp.endOpacity.eval(frameNo) * 2.55'f32 + 0.5'f32), 0, 255))
+        repeaters.add(RepeaterInfo(
+          cnt: cnt,
+          offset: rp.offset.eval(frameNo),
+          position: rp.position.eval(frameNo),
+          anchor: rp.anchor.eval(frameNo),
+          scale: rp.scale.eval(frameNo),
+          rotation: rp.rotation.eval(frameNo),
+          startOpacity: so,
+          endOpacity: eo,
+          inorder: rp.inorder,
+          baseTransform: local.transform
+        ))
+
+    elif child of LottieGroup:
+      if child.hidden: continue
       flushAcc()
       acts.add(DrawAct(kind: akGroup, grp: LottieGroup(child)))
+
     elif child of LottiePathObj:
+      if child.hidden: continue
       let p = LottiePathObj(child)
       if local.roundCorner > 0.0'f32:
         let tmp = newShape()
@@ -1001,14 +1201,31 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       else:
         buildPath(acc, p.path.eval(frameNo))
       accHas = true
+
     elif child of LottieRectObj:
+      if child.hidden: continue
       let r = LottieRectObj(child)
-      let rr = max(r.radius.eval(frameNo), local.roundCorner)
       let pos = r.position.eval(frameNo)
       let sz = r.size.eval(frameNo)
-      discard acc.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, rr, rr)
+      let baseR = r.radius.eval(frameNo)
+      let rr = max(baseR, local.roundCorner)
+      # Use roundPath modifier when trim/other path modifiers active (better C++ modifier semantics);
+      # otherwise bake into appendRect for better native corner geometry.
+      let useRoundPath = local.roundCorner > 0.0'f32 and (local.hasTrim or local.hasZigzag or local.puckerBloat != 0.0'f32 or local.hasOffsetPath)
+      if useRoundPath:
+        let tmp = newShape()
+        discard tmp.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, 0.0'f32, 0.0'f32)
+        tmp.rs.path = roundPath(tmp.rs.path, rr)
+        acc.rs.path.cmds.add(tmp.rs.path.cmds)
+        acc.rs.path.pts.add(tmp.rs.path.pts)
+      elif local.roundCorner > 0.0'f32:
+        discard acc.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, rr, rr)
+      else:
+        discard acc.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, baseR, baseR)
       accHas = true
+
     elif child of LottieEllipseObj:
+      if child.hidden: continue
       let e = LottieEllipseObj(child)
       let pos = e.position.eval(frameNo)
       let sz = e.size.eval(frameNo)
@@ -1021,7 +1238,9 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       else:
         discard acc.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
       accHas = true
+
     elif child of LottiePolystarObj:
+      if child.hidden: continue
       let ps = LottiePolystarObj(child)
       if local.roundCorner > 0.0'f32:
         let tmp = newShape()
@@ -1036,10 +1255,10 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
           ps.innerRadius.eval(frameNo), ps.outerRoundness.eval(frameNo), ps.innerRoundness.eval(frameNo),
           ps.rotation.eval(frameNo), ps.points.eval(frameNo), ps.starType)
       accHas = true
+
   flushAcc()
-  # C++ ThorVG LottieBuilder iterates children in reverse and adds group scenes at processing time,
-  # resulting in reverse array draw order relative to Lottie spec. Match C++ to keep parity with goldens.
-  for i in countdown(acts.len - 1, 0):
+  # Acts collected in reverse child order; emit forward to match C++ add-at-processing-time.
+  for i in 0 ..< acts.len:
     case acts[i].kind
     of akShape:
       discard parentScene.add(acts[i].shp)
@@ -1111,7 +1330,9 @@ proc layerWorldOpacity(layers: seq[LottieLayer]; layer: LottieLayer; frameNo: fl
   while pid >= 0 and guard < 32:
     let p = findLayerById(layers, pid)
     if p == nil: break
-    op = (op * int(layerOpacity(p.transform, frameNo))) div 255
+    # Null layers are transform-only parents; their opacity must not affect children.
+    if p.layerType != ltNull:
+      op = (op * int(layerOpacity(p.transform, frameNo))) div 255
     pid = p.parentId
     inc guard
   uint8(clamp(op, 0, 255))
@@ -1320,20 +1541,23 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     return finalizeLayerScene(layerScene)
 
   if layer.layerType != ltShape: return nil # TODO: image/text
-  # Avoid double-applying layer transform opacity: scene gets parent-only opacity,
-  # buildGroup applies the layer's own transform opacity via its transform child.
+  # Scene carries parent-only opacity; layer's own transform opacity is seeded into
+  # buildGroup context (layer ks is not a child transform in Lottie shape layers).
   var parentOp = 255
   var pid = layer.parentId
   var guard = 0
   while pid >= 0 and guard < 32:
     let p = findLayerById(layers, pid)
     if p == nil: break
-    parentOp = (parentOp * int(layerOpacity(p.transform, frameNo))) div 255
+    # Null layers are transform-only parents; their opacity must not affect children.
+    if p.layerType != ltNull:
+      parentOp = (parentOp * int(layerOpacity(p.transform, frameNo))) div 255
     pid = p.parentId
     inc guard
   let layerScene = newScene()
   var ctx = identityCtx()
   ctx.transform = world
+  ctx.opacity = layerOpacity(layer.transform, frameNo)
   discard layerScene.opacity(uint8(clamp(parentOp, 0, 255)))
   let g = LottieGroup(objType: otGroup, children: layer.children)
   buildGroup(g, frameNo, layerScene, ctx)
