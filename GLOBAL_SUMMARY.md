@@ -1,4 +1,6 @@
-# GLOBAL_SUMMARY: ThorVG -> Nim migration, snapshot of 2026-11-20
+# GLOBAL_SUMMARY: ThorVG -> Nim migration
+
+Snapshot base: 2026-11-20 (Windows parity baseline). Updated: 2026-11-22 (Linux, Lottie Phase 2 progress).
 
 Entry point for any agent that continues this work. Read this file first, then `migration\STATE.md` (append-only log of
 every unit), `migration\PLAN.md` (unit table), `migration\DECISIONS.md` (architecture, hazards, every deviation).
@@ -76,7 +78,7 @@ tint, tritone, motion blur), `newSwCanvas`, loaders for png/jpg/gif/webp/svg/ttf
 | Window + image writers (T14) | verified | tests; GUI tests only with `THORVG_GUI_TEST=1` |
 | OpenGL engine (G0..G5, L6 GL part) | verified, bit-exact vs original C++ GL engine on THIS GPU/driver | GL parity 728/728 + 56 glx, 3 oracles |
 | Animation + Accessor + Saver (L7) | **ported, NOT verified**: unit tests only, no C++ parity cases | `test_animation/accessor/saver` |
-| Lottie (L4) | **not started** (deferred by user, A1) | |
+| Lottie (L4) | **Phase 2 in progress** (runtime, no JS/AOT). Phase 0/1 done; Phase 2 builder vs C++ RGBA goldens: **4/19 pass, 15 fail, 0 skip** (tol 2). Pass: `test,test14,embedded_font,segment`. Recent: Tritone blend default fix (LottieOpacity 0-100->0-255, default 0), test12 8276->7778. See `docs/lottie-status.md`. | `tests/lottie/test_phase2_builder.nim` |
 | WebGPU, C API, partial render (L2), OTF, GIF/Lottie savers, threads/SIMD | **not started** | see section 9 |
 
 Latest full verification (2026-11-20, verifier round 4, see `migration\FAILURES.md`, `REPORT.md`, `BENCH.md`, `PARITY_LOG.md`):
@@ -150,7 +152,7 @@ non-raising polls a thread-local, re-fetched via `__emutls_get_address` per iter
 | Parity cases for L7 (Animation/Accessor/Saver) | - | low (1) | add driver scenes + golden from C++ |
 | C API (`bindings/capi`) | ~4 700 lines | medium (2-3) | DLL with `{.exportc, dynlib.}` in an `*_ffi.nim`; verify with a C program using the original header |
 | Partial render / dirty regions (L2) | a few hundred lines in tvgRender + engines | medium-low (1-2) | extend RenderMethod (`damage/partial/dirtyRegions`), CPU + GL; result must equal full render |
-| Lottie without expressions (L4) | ~10 000 lines core (the 137 734 total = 112 233 JerryScript + 16 379 rapidjson + ~10 000 core) | high (8-12 + verify) | JSON via `std/json` or own parser; `Animation` already exists (L7); needs C++ build with `THORVG_LOTTIE_LOADER_SUPPORT` for golden. Expressions (JerryScript) should stay unsupported |
+| Lottie without expressions (L4) | ~10 000 lines core | high (in progress) | Phase 2 builder active on Linux. Runtime only, no JS engine/AOT. Uses `jsony` for JSON; C++ RGBA goldens for parity. Current: 4/19 pass, 15 fail, 0 skip. Main blockers: full RenderContext/propagator/modifier semantics, DropShadow blur exact 1.1.1 parity, Stroke ty22, text layers, slots/assets. |
 | OTF (CFF charstrings) | ~2 000 lines with TTF (`modules/sfnt`) | medium (1-2) | TTF reader exists in `loaders/font` |
 | GIF saver / Lottie saver | ~700 lines (gif encoder + saver) | low (1) / needs Lottie | `Saver` registry exists |
 | Threads / SIMD (AVX2, `tvgSwRasterSimd.cpp`, task scheduler) | | medium (2-4) | output must stay bit-exact; SIMD only in `*_unsafe.nim` |
