@@ -964,6 +964,12 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         local.offsetPathMiter = op.miterLimit
         local.offsetPathJoin = if op.join == 1: StrokeJoin.Bevel elif op.join == 2: StrokeJoin.Round else: StrokeJoin.Miter
         local.hasOffsetPath = local.offsetPathVal != 0.0'f32
+  type DrawActKind = enum akShape, akGroup
+  type DrawAct = object
+    case kind: DrawActKind
+    of akShape: shp: Shape
+    of akGroup: grp: LottieGroup
+  var acts: seq[DrawAct] = @[]
   var acc = newShape()
   var accHas = false
   proc flushAcc() =
@@ -976,14 +982,14 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       acc.rs.path = offsetPath(acc.rs.path, local.offsetPathVal, local.offsetPathJoin, local.offsetPathMiter)
     applyStyle(acc, local)
     discard acc.transform(local.transform)
-    discard parentScene.add(acc)
+    acts.add(DrawAct(kind: akShape, shp: acc))
     acc = newShape()
     accHas = false
   for child in g.children:
     if child == nil or child.hidden: continue
     if child of LottieGroup:
       flushAcc()
-      buildGroup(LottieGroup(child), frameNo, parentScene, local)
+      acts.add(DrawAct(kind: akGroup, grp: LottieGroup(child)))
     elif child of LottiePathObj:
       let p = LottiePathObj(child)
       if local.roundCorner > 0.0'f32:
@@ -1031,6 +1037,14 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
           ps.rotation.eval(frameNo), ps.points.eval(frameNo), ps.starType)
       accHas = true
   flushAcc()
+  # C++ ThorVG LottieBuilder iterates children in reverse and adds group scenes at processing time,
+  # resulting in reverse array draw order relative to Lottie spec. Match C++ to keep parity with goldens.
+  for i in countdown(acts.len - 1, 0):
+    case acts[i].kind
+    of akShape:
+      discard parentScene.add(acts[i].shp)
+    of akGroup:
+      buildGroup(acts[i].grp, frameNo, parentScene, local)
 
 proc buildObject(obj: LottieObject; frameNo: float32; parentScene: Scene; ctx: LottieBuildCtx) =
   if obj == nil or obj.hidden: return
