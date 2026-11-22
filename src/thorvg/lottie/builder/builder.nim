@@ -546,9 +546,8 @@ proc frameAtTime(comp: LottieComposition; timeInSec: float32): float32 =
 
 proc remapFrame(comp: LottieComposition; layer: LottieLayer; frameNo: float32): float32 =
   # C++ LottieRootLayer::remap: if timeRemap enabled, frameAtTime(timeRemap(frameNo)); else (frameNo-startFrame)/timeStretch
-  let tr = layer.timeRemap.eval(frameNo)
-  if layer.timeRemap.frames.len > 0 or tr >= 0.0'f32:
-    return frameAtTime(comp, tr)
+  if layer.timeRemap.frames.len > 0 or layer.timeRemap.value >= 0.0'f32:
+    return frameAtTime(comp, layer.timeRemap.eval(frameNo))
   let stretch = if layer.timeStretch == 0.0'f32: 1.0'f32 else: layer.timeStretch
   (frameNo - layer.startFrame) / stretch
 
@@ -717,6 +716,8 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     return finalizeLayerScene(layerScene)
 
   if layer.layerType == ltImage:
+    let layerScene = newScene()
+    discard layerScene.opacity(op)
     let asset = findAsset(comp, layer.refId)
     if asset != nil and asset.p.len > 0 and not asset.embedded:
       let path = if asset.u.len > 0: comp.resourceDir / asset.u / asset.p else: comp.resourceDir / asset.p
@@ -725,11 +726,8 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
         if asset.w > 0.0'f32 and asset.h > 0.0'f32:
           discard pic.size(asset.w, asset.h)
         discard pic.transform(world)
-        let layerScene = newScene()
-        discard layerScene.opacity(op)
         discard layerScene.add(pic)
-        return finalizeLayerScene(layerScene)
-    return nil
+    return finalizeLayerScene(layerScene)
 
   if layer.layerType != ltShape: return nil # TODO: image/text
   # Avoid double-applying layer transform opacity: scene gets parent-only opacity,
