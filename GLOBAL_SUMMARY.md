@@ -78,7 +78,7 @@ tint, tritone, motion blur), `newSwCanvas`, loaders for png/jpg/gif/webp/svg/ttf
 | Window + image writers (T14) | verified | tests; GUI tests only with `THORVG_GUI_TEST=1` |
 | OpenGL engine (G0..G5, L6 GL part) | verified, bit-exact vs original C++ GL engine on THIS GPU/driver | GL parity 728/728 + 56 glx, 3 oracles |
 | Animation + Accessor + Saver (L7) | **ported, NOT verified**: unit tests only, no C++ parity cases | `test_animation/accessor/saver` |
-| Lottie (L4) | **Phase 2 in progress** (runtime, no JS/AOT). Phase 0/1 done; Phase 2 builder vs C++ RGBA goldens: **5/19 pass, 14 fail, 0 skip** (tol 2). Pass: `test,test12,test14,embedded_font,segment`. Recent: blur quality fix (Lottie C++ 1.1.1 uses quality 50; Nim had quality 100 + sigma^2*0.5 hack) => test12 passes. See `docs/lottie-status.md`. | `tests/lottie/test_phase2_builder.nim` |
+| Lottie (L4) | **Phase 2 in progress** (runtime, no JS/AOT). Phase 0/1 done; Phase 2 builder vs C++ RGBA goldens: **5/19 pass, 14 fail, 0 skip** (tol 2). Pass: `test,test12,test14,embedded_font,segment`. Recent: blur quality fix (quality 50, sigma formula) + RoundCorner rd fix (roundPolystar + rect rd C++ 1.1.1 semantics) => test6/test9/test5 improved, no regressions. See `docs/lottie-status.md`. | `tests/lottie/test_phase2_builder.nim` |
 | WebGPU, C API, partial render (L2), OTF, GIF/Lottie savers, threads/SIMD | **not started** | see section 9 |
 
 Latest full verification (2026-11-20, verifier round 4, see `migration\FAILURES.md`, `REPORT.md`, `BENCH.md`, `PARITY_LOG.md`):
