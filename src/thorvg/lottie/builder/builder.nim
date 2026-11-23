@@ -1289,15 +1289,21 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let e = LottieEllipseObj(child)
       let pos = e.position.eval(frameNo)
       let sz = e.size.eval(frameNo)
-      if local.roundCorner > 0.0'f32:
-        let tmp = newShape()
-        discard tmp.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
-        tmp.rs.path = roundPath(tmp.rs.path, local.roundCorner)
-        acc.rs.path.cmds.add(tmp.rs.path.cmds)
-        acc.rs.path.pts.add(tmp.rs.path.pts)
+      # C++ 1.1.1: RoundnessModifier::ellipse bypasses. OffsetModifier::ellipse expands radius.
+      if local.hasOffsetPath and local.offsetPathVal != 0.0'f32 and local.puckerBloat == 0.0'f32 and not local.hasZigzag:
+        flushAcc()
+        let rx = max(0.0'f32, sz.x/2.0'f32 + local.offsetPathVal)
+        let ry = max(0.0'f32, sz.y/2.0'f32 + local.offsetPathVal)
+        let sh = newShape()
+        discard sh.appendCircle(pos.x, pos.y, rx, ry)
+        applyStyle(sh, local)
+        discard sh.transform(local.transform)
+        let expanded = applyRepeaters(sh)
+        for s in expanded:
+          acts.add(DrawAct(kind: akShape, shp: s))
       else:
         discard acc.appendCircle(pos.x, pos.y, sz.x/2.0'f32, sz.y/2.0'f32)
-      accHas = true
+        accHas = true
 
     elif child of LottiePolystarObj:
       if child.hidden: continue
