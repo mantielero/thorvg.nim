@@ -720,7 +720,11 @@ proc roundPath(inPath: RenderPath; r: float32): RenderPath =
             didRound = true
           elif nextCmd == PathCommand.Close and inputStartPt + 2 < inPath.pts.len:
             roundTo = roundLineCorner(result, prev, curr, inPath.pts[inputStartPt + 2], r)
+            let oldStart = result.pts[startIndex]
             result.pts[startIndex] = result.pts[^1]
+            # All-cubic Nim paths: first cubic ctrl1 may be stale copy of old moveTo.
+            if startIndex + 1 < result.pts.len and zero(result.pts[startIndex + 1] - oldStart):
+              result.pts[startIndex + 1] = result.pts[startIndex]
             iPts += 3
             rounded = true
             didRound = true
