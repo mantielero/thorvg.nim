@@ -245,7 +245,8 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
     var x = outerR * cos(angle)
     var y = outerR * sin(angle)
     angle += anglePerPoint * direction
-    discard s.moveTo(pos.x + x, pos.y + y)
+    let startPt = Point(x: pos.x + x, y: pos.y + y)
+    discard s.moveTo(startPt.x, startPt.y)
     let coeff = anglePerPoint * outerR * outerRoundness * POLYGON_MAGIC
     for i in 0 ..< ptsCnt:
       let prevX = x; let prevY = y
@@ -264,6 +265,12 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
       else:
         discard s.cubicTo(pos.x + prevX, pos.y + prevY, pos.x + x, pos.y + y, pos.x + x, pos.y + y)
       angle += anglePerPoint * direction
+    # C++ _close: ensure last point == start (float precision)
+    if s.rs.path.pts.len >= 1:
+      let li = s.rs.path.pts.len - 1
+      if s.rs.path.pts.len >= 2 and zero(s.rs.path.pts[li] - s.rs.path.pts[li-1]):
+        s.rs.path.pts[li-1] = startPt
+      s.rs.path.pts[li] = startPt
     discard s.close()
   else:
     # Star
@@ -291,7 +298,8 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
       x = outerR * cos(angle)
       y = outerR * sin(angle)
       angle += halfAnglePerPoint * direction
-    discard s.moveTo(pos.x + x, pos.y + y)
+    let startPt = Point(x: pos.x + x, y: pos.y + y)
+    discard s.moveTo(startPt.x, startPt.y)
     for i in 0 ..< numPoints:
       var radius = if longSegment: outerR else: innerR
       var dTheta = halfAnglePerPoint
@@ -325,6 +333,12 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
         discard s.cubicTo(pos.x + prevX, pos.y + prevY, pos.x + x, pos.y + y, pos.x + x, pos.y + y)
       angle += dTheta * direction
       longSegment = not longSegment
+    # C++ _close: ensure last point == start (float precision)
+    if s.rs.path.pts.len >= 1:
+      let li = s.rs.path.pts.len - 1
+      if s.rs.path.pts.len >= 2 and zero(s.rs.path.pts[li] - s.rs.path.pts[li-1]):
+        s.rs.path.pts[li-1] = startPt
+      s.rs.path.pts[li] = startPt
     discard s.close()
 
 proc toColorStops(stops: seq[LottieGradientStop]; opacity: uint8): seq[ColorStop] =
