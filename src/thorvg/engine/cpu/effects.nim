@@ -94,7 +94,7 @@ proc gaussianBlurUpdate*(p: GaussianBlurEffect, tm: Matrix) =
   if p.rd == nil: p.rd = SwBlurData()
   let d = SwBlurData(p.rd)
   let scaleSquared = tm.e11 * tm.e11 + tm.e12 * tm.e12
-  d.extends = gaussianInit(d, p.sigma * p.sigma * scaleSquared * 0.5'f32, int(p.quality))
+  d.extends = gaussianInit(d, p.sigma * p.sigma * scaleSquared, int(p.quality))
   p.valid = d.extends > 0
 
 proc gaussianBlurRegion*(p: GaussianBlurEffect): bool =

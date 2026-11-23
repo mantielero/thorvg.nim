@@ -87,7 +87,7 @@ proc dropShadowUpdate*(p: DropShadowEffect, tm: Matrix) =
   let d = SwBlurData(p.rd)
   # the sum of the box radii covers the full blur support
   let scaleSquared = tm.e11 * tm.e11 + tm.e12 * tm.e12
-  d.extends = gaussianInit(d, p.sigma * p.sigma * scaleSquared * 0.5'f32, int(p.quality))
+  d.extends = gaussianInit(d, p.sigma * p.sigma * scaleSquared, int(p.quality))
   d.offset = SwPoint(x: int32(offset.x), y: int32(offset.y))
 
 proc effectDropShadow*(cmp: SwCompositor, s0, s1: SwSurface, p: DropShadowEffect,

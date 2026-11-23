@@ -1379,14 +1379,14 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
     of etGaussianBlur:
       let fx = LottieFxGaussianBlur(e)
       let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
-      discard layerScene.gaussianBlur(sigma, fx.direction - 1, fx.wrap, 100)
+      discard layerScene.gaussianBlur(sigma, fx.direction - 1, fx.wrap, 50)
     of etDropShadow:
       let fx = LottieFxDropShadow(e)
       let c = fx.color.eval(frameNo)
       let op = clamp(int(fx.opacity.eval(frameNo)), 0, 255)
       let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
       discard layerScene.dropShadow(int(c.r*255+0.5'f32), int(c.g*255+0.5'f32), int(c.b*255+0.5'f32), op,
-                                    fx.angle.eval(frameNo), fx.distance.eval(frameNo), sigma, 100)
+                                    fx.angle.eval(frameNo), fx.distance.eval(frameNo), sigma, 50)
     of etStroke:
       if layer.masks.len == 0: continue
       let fx = LottieFxStroke(e)
