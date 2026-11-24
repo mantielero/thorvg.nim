@@ -3,6 +3,7 @@
 import std/json
 import ../../core/types
 import common, property
+import ../animation/interpolator
 
 type
   LottieObjectType* = enum
@@ -90,8 +91,23 @@ type
     color*: LottieColor
     alpha*: float32 # 0..1, default 1
 
+  LottieColorStopFrame* = object
+    no*: float32
+    input*: seq[float32]  # raw Lottie g.k array: p*4 color + alpha*2
+    hold*: bool
+    interpolator*: LottieInterpolator
+
+  LottieColorStops* = ref object
+    colorCount*: int # p
+    value*: seq[float32] # static raw input
+    frames*: seq[LottieColorStopFrame]
+    populated*: bool
+    populatedCount*: int
+    populatedData*: seq[ColorStop] # populated for static case
+    populatedFrames*: seq[seq[ColorStop]] # populated per frame
+
   LottieGradientFillObj* = ref object of LottieObject
-    stops*: seq[LottieGradientStop]
+    colorStops*: LottieColorStops
     stopsSid*: uint32
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
     start*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
@@ -102,7 +118,7 @@ type
     gradType*: int # 1=linear, 2=radial
 
   LottieGradientStrokeObj* = ref object of LottieObject
-    stops*: seq[LottieGradientStop]
+    colorStops*: LottieColorStops
     stopsSid*: uint32
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
     start*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]

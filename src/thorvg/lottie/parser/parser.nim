@@ -486,55 +486,47 @@ proc parseShapes(j: JsonNode; warnings: var seq[string]; ctx: string): seq[Lotti
     if child != nil: result.add(child)
     inc i
 
-proc parseGradientStops(j: JsonNode; sid: var uint32): seq[LottieGradientStop] =
-  result = @[]
-  # j is the "g" object: {p: count, k: [...] } or {p: count, k: {a:0,k:[...]}}
+proc parseGradientStops(j: JsonNode; sid: var uint32): LottieColorStops =
+  ## Parse Lottie gradient stops (g object). Supports static and animated (a==1).
+  ## Stores raw input arrays; builder populates/merges color+alpha stops like C++.
+  result = LottieColorStops(colorCount: 0)
   if j.kind != JObject or not j.hasKey("k"): return
   if j.hasKey("sid") and j["sid"].kind == JString: sid = djb2Encode(j["sid"].getStr())
+  result.colorCount = if j.hasKey("p"): asInt(j["p"], 0) else: 0
   var k = j["k"]
   if k.kind == JObject:
     if k.hasKey("sid") and k["sid"].kind == JString: sid = djb2Encode(k["sid"].getStr())
-    if k.hasKey("k"): k = k["k"] # static or animated wrapper
-  if k.kind == JObject and k.hasKey("k"): k = k["k"]
-  if k.kind != JArray: return
-  # p = number of color stops (each 4 values: offset,r,g,b). Remaining may be alpha stops.
-  let p = if j.hasKey("p"): asInt(j["p"], 0) else: k.len div 4
-  var i = 0
-  while i + 3 < k.len and result.len < max(p, 0):
-    let off = asFloat(k[i], 0.0'f32)
-    let r = asFloat(k[i+1], 0.0'f32)
-    let g = asFloat(k[i+2], 0.0'f32)
-    let b = asFloat(k[i+3], 0.0'f32)
-    result.add(LottieGradientStop(offset: off, color: LottieColor(r:r, g:g, b:b), alpha: 1.0'f32))
-    i += 4
-  # alpha stops: pairs (offset, alpha)
-  var alphaStops: seq[(float32, float32)] = @[]
-  while i + 1 < k.len:
-    alphaStops.add((asFloat(k[i], 0.0'f32), asFloat(k[i+1], 1.0'f32)))
-    i += 2
-  # merge alpha stops by index if counts match, else by nearest offset
-  if alphaStops.len > 0 and result.len > 0:
-    if alphaStops.len == result.len:
-      for j in 0 ..< result.len:
-        result[j].alpha = alphaStops[j][1]
-    else:
-      for j in 0 ..< result.len:
-        var best = 0
-        var bestD = abs(result[j].offset - alphaStops[0][0])
-        for a in 1 ..< alphaStops.len:
-          let d = abs(result[j].offset - alphaStops[a][0])
-          if d < bestD: bestD = d; best = a
-        result[j].alpha = alphaStops[best][1]
-  # if p was 0 or parsing failed, try to read all 4-tuples
-  if result.len == 0:
-    i = 0
-    while i + 3 < k.len:
-      let off = asFloat(k[i], 0.0'f32)
-      let r = asFloat(k[i+1], 0.0'f32)
-      let g = asFloat(k[i+2], 0.0'f32)
-      let b = asFloat(k[i+3], 0.0'f32)
-      result.add(LottieGradientStop(offset: off, color: LottieColor(r:r, g:g, b:b), alpha: 1.0'f32))
-      i += 4
+    if k.hasKey("k"): k = k["k"] # unwrap {a:0/1, k:...}
+  # k can be: static array of floats, or animated array of keyframe objects
+  if k.kind == JArray and k.len > 0 and k[0].kind == JObject and k[0].hasKey("t"):
+    # animated
+    for item in k:
+      if item.kind != JObject: continue
+      var f = LottieColorStopFrame(no: asFloat(item.getNode("t")))
+      f.hold = asInt(item.getNode("h"), 0) != 0
+      if item.hasKey("i") or item.hasKey("o"):
+        let inTan = getInterpolatorPoint(item.getNode("i"))
+        let outTan = getInterpolatorPoint(item.getNode("o"))
+        f.interpolator = makeInterpolator(inTan, outTan)
+      # value: prefer 's' (start), 'k' sometimes
+      var sv = item.getNode("s")
+      if sv == nil: sv = item.getNode("k")
+      if sv != nil and sv.kind == JArray:
+        for v in sv:
+          f.input.add(asFloat(v, 0.0'f32))
+      result.frames.add(f)
+  elif k.kind == JArray:
+    # static
+    for v in k:
+      if v.kind == JArray:
+        # nested? unusual, flatten
+        for vv in v: result.value.add(asFloat(vv, 0.0'f32))
+      else:
+        result.value.add(asFloat(v, 0.0'f32))
+  if result.colorCount == 0 and result.value.len > 0:
+    result.colorCount = result.value.len div 4
+  if result.colorCount == 0 and result.frames.len > 0 and result.frames[0].input.len > 0:
+    result.colorCount = result.frames[0].input.len div 4
 
 proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObject =
   if j.kind != JObject: return nil
@@ -675,13 +667,13 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     if j.hasKey("t"): gf.gradType = asInt(j["t"], 1)
     if j.hasKey("g"):
       var gsid: uint32 = 0
-      gf.stops = parseGradientStops(j["g"], gsid)
+      gf.colorStops = parseGradientStops(j["g"], gsid)
       gf.stopsSid = gsid
       if gsid != 0:
         let gg = gf
         gSlotBindings.add(LottieSlotBinding(sid: gsid, apply: proc(ov: JsonNode) =
           var s2: uint32 = 0
-          gg.stops = parseGradientStops(ov, s2)))
+          gg.colorStops = parseGradientStops(ov, s2)))
     return gf
   of "gs":
     let gs = LottieGradientStrokeObj(objType: otGradientStroke, name: nm, hidden: hd,
@@ -713,13 +705,13 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     if j.hasKey("ml"): gs.miterLimit = asFloat(j["ml"], 0.0'f32)
     if j.hasKey("g"):
       var gsid: uint32 = 0
-      gs.stops = parseGradientStops(j["g"], gsid)
+      gs.colorStops = parseGradientStops(j["g"], gsid)
       gs.stopsSid = gsid
       if gsid != 0:
         let gg2 = gs
         gSlotBindings.add(LottieSlotBinding(sid: gsid, apply: proc(ov: JsonNode) =
           var s2: uint32 = 0
-          gg2.stops = parseGradientStops(ov, s2)))
+          gg2.colorStops = parseGradientStops(ov, s2)))
     if j.hasKey("d") and j["d"].kind == JArray:
       gs.dashOffset = newScalarProp(0.0'f32)
       for di in j["d"]:

@@ -5,6 +5,7 @@ import std/[math, os]
 import ../../core/[types, geom, fill, path, bezier]
 import ../../renderer/[paint, shape, scene, picture]
 import ../model/[common, model, property]
+import ../animation/interpolator
 
 type
   LottieBuildCtx* = object
@@ -80,7 +81,8 @@ proc rootScene*(b: LottieBuilder): Scene = b.root
 
 proc toRgba(c: LottieColor; opacity: uint8): RGBA =
   let a = uint8(clamp(int(float32(opacity) * 1.0'f32), 0, 255))
-  # c.r/g/b are 0..1
+  # c.r/g/b are 0..1. Keep round-half-up for solid fill/stroke to avoid regressions;
+  # C++ RGB32 lerps in int space so 1-unit diffs can remain on interpolated colors.
   RGBA(r: uint8(clamp(int(c.r * 255.0'f32 + 0.5'f32), 0, 255)),
        g: uint8(clamp(int(c.g * 255.0'f32 + 0.5'f32), 0, 255)),
        b: uint8(clamp(int(c.b * 255.0'f32 + 0.5'f32), 0, 255)),
@@ -341,19 +343,115 @@ proc buildPolystar(s: Shape; pos: LottiePoint; outerR, innerR, outerRound, inner
       s.rs.path.pts[li] = startPt
     discard s.close()
 
-proc toColorStops(stops: seq[LottieGradientStop]; opacity: uint8): seq[ColorStop] =
+proc lerpU8(a, b: uint8; t: float32): uint8 {.inline.} =
+  uint8(clamp(int(float32(a) + (float32(b) - float32(a)) * t), 0, 255))
+
+proc lerpStop(a, b: ColorStop; t: float32): ColorStop {.inline.} =
+  ColorStop(offset: a.offset + (b.offset - a.offset) * t,
+            r: lerpU8(a.r,b.r,t), g: lerpU8(a.g,b.g,t), b: lerpU8(a.b,b.b,t), a: lerpU8(a.a,b.a,t))
+
+proc populateColorStops(input: seq[float32]; colorCount: int): seq[ColorStop] =
+  ## C++ 1.2.0 LottieGradient::populate: merge color stops (4 floats) and alpha stops (2 floats).
+  result = @[]
+  if input.len == 0 or colorCount <= 0: return
+  let clast = colorCount * 4
+  if input.len < clast: return
+  let inputLast = clast + ((input.len - clast) div 2) * 2 # ignore incomplete trailing alpha
+  var cidx = 0
+  var aidx = clast
+  var cs: ColorStop
+  while cidx < clast and aidx < inputLast:
+    if input[cidx] == input[aidx]:
+      cs.offset = input[cidx]
+      cs.r = remap255(input[cidx+1]); cs.g = remap255(input[cidx+2]); cs.b = remap255(input[cidx+3])
+      cs.a = remap255(input[aidx+1])
+      cidx += 4; aidx += 2
+    elif input[cidx] < input[aidx]:
+      cs.offset = input[cidx]
+      cs.r = remap255(input[cidx+1]); cs.g = remap255(input[cidx+2]); cs.b = remap255(input[cidx+3])
+      if result.len > 0:
+        let p = (input[cidx] - result[^1].offset) / (input[aidx] - result[^1].offset)
+        cs.a = lerpU8(result[^1].a, remap255(input[aidx+1]), p)
+      else:
+        cs.a = remap255(input[aidx+1])
+      cidx += 4
+    else:
+      cs.offset = input[aidx]
+      cs.a = remap255(input[aidx+1])
+      if result.len > 0:
+        let p = (input[aidx] - result[^1].offset) / (input[cidx] - result[^1].offset)
+        cs.r = lerpU8(result[^1].r, remap255(input[cidx+1]), p)
+        cs.g = lerpU8(result[^1].g, remap255(input[cidx+2]), p)
+        cs.b = lerpU8(result[^1].b, remap255(input[cidx+3]), p)
+      else:
+        cs.r = remap255(input[cidx+1]); cs.g = remap255(input[cidx+2]); cs.b = remap255(input[cidx+3])
+      aidx += 2
+    result.add(cs)
+  while cidx + 3 < clast:
+    cs.offset = input[cidx]
+    cs.r = remap255(input[cidx+1]); cs.g = remap255(input[cidx+2]); cs.b = remap255(input[cidx+3])
+    cs.a = if result.len > 0: result[^1].a else: 255'u8
+    result.add(cs); cidx += 4
+  while aidx + 1 < inputLast:
+    cs.offset = input[aidx]
+    cs.a = remap255(input[aidx+1])
+    if result.len > 0:
+      cs.r = result[^1].r; cs.g = result[^1].g; cs.b = result[^1].b
+    else:
+      cs.r = 255; cs.g = 255; cs.b = 255
+    result.add(cs); aidx += 2
+
+proc evalColorStops(cs: LottieColorStops; frameNo: float32): seq[ColorStop] =
+  ## Evaluate animated/static color stops, populate-merge, return Fill::ColorStop-like seq.
+  if cs == nil: return @[]
+  if cs.frames.len == 0:
+    if not cs.populated:
+      cs.populatedData = populateColorStops(cs.value, cs.colorCount)
+      cs.populatedCount = cs.populatedData.len
+      cs.populated = true
+    return cs.populatedData
+  # animated: populate frames on demand
+  if not cs.populated:
+    cs.populatedFrames.setLen(cs.frames.len)
+    var minCount = int.high
+    for i, f in cs.frames:
+      cs.populatedFrames[i] = populateColorStops(f.input, cs.colorCount)
+      minCount = min(minCount, cs.populatedFrames[i].len)
+    cs.populatedCount = if minCount == int.high: 0 else: minCount
+    cs.populated = true
+  if cs.populatedCount <= 0: return @[]
+  let first = cs.frames[0].no
+  let last = cs.frames[^1].no
+  if cs.frames.len == 1 or frameNo <= first:
+    return cs.populatedFrames[0][0 ..< min(cs.populatedCount, cs.populatedFrames[0].len)]
+  if frameNo >= last:
+    let li = cs.populatedFrames.len - 1
+    return cs.populatedFrames[li][0 ..< min(cs.populatedCount, cs.populatedFrames[li].len)]
+  # find keyframe
+  var key = 0
+  for i in 0 ..< cs.frames.len - 1:
+    if frameNo < cs.frames[i+1].no: key = i; break
+    key = i
+  let f = cs.frames[key]
+  let n = cs.frames[key+1]
+  var t = (frameNo - f.no) / (n.no - f.no)
+  if f.interpolator != nil: t = f.interpolator.progress(t)
+  if f.hold:
+    if t < 1.0'f32: return cs.populatedFrames[key][0 ..< min(cs.populatedCount, cs.populatedFrames[key].len)]
+    return cs.populatedFrames[key+1][0 ..< min(cs.populatedCount, cs.populatedFrames[key+1].len)]
+  let s = cs.populatedFrames[key]
+  let e = cs.populatedFrames[key+1]
+  result = newSeq[ColorStop](cs.populatedCount)
+  for i in 0 ..< cs.populatedCount:
+    result[i] = lerpStop(s[i], e[i], t)
+
+proc toColorStops(stops: LottieColorStops; opacity: uint8; frameNo: float32): seq[ColorStop] =
   ## opacity is 0-100 (Lottie). TODO: C++ uses 0-1->0-255; Nim engine gradient stroke
   ## rendering is wrong when using full alpha, so keep 0-100 scaling for now.
-  result = @[]
-  for st in stops:
-    let oa = clamp(st.alpha, 0.0'f32, 1.0'f32)
-    let a = uint8(clamp(int(float32(opacity) * oa + 0.5'f32), 0, 255))
-    result.add(ColorStop(
-      offset: clamp(st.offset, 0.0'f32, 1.0'f32),
-      r: uint8(clamp(int(st.color.r * 255.0'f32 + 0.5'f32), 0, 255)),
-      g: uint8(clamp(int(st.color.g * 255.0'f32 + 0.5'f32), 0, 255)),
-      b: uint8(clamp(int(st.color.b * 255.0'f32 + 0.5'f32), 0, 255)),
-      a: a))
+  result = evalColorStops(stops, frameNo)
+  for i in 0 ..< result.len:
+    let oa = clamp(float32(result[i].a) / 255.0'f32, 0.0'f32, 1.0'f32)
+    result[i].a = uint8(clamp(int(float32(opacity) * oa + 0.5'f32), 0, 255))
 
 proc makeGradient(gf: LottieGradientFillObj; frameNo: float32): Fill =
   let op = gf.opacity.eval(frameNo)
@@ -375,7 +473,7 @@ proc makeGradient(gf: LottieGradientFillObj; frameNo: float32): Fill =
       f = radialGradient(spt.x, spt.y, r, fx, fy, 0.0'f32)
   else:
     f = linearGradient(spt.x, spt.y, ept.x, ept.y)
-  f.stops = toColorStops(gf.stops, op)
+  f.stops = toColorStops(gf.colorStops, op, frameNo)
   f
 
 proc makeStrokeGradient(gs: LottieGradientStrokeObj; frameNo: float32): Fill =
@@ -398,7 +496,7 @@ proc makeStrokeGradient(gs: LottieGradientStrokeObj; frameNo: float32): Fill =
       f = radialGradient(spt.x, spt.y, r, fx, fy, 0.0'f32)
   else:
     f = linearGradient(spt.x, spt.y, ept.x, ept.y)
-  f.stops = toColorStops(gs.stops, op)
+  f.stops = toColorStops(gs.colorStops, op, frameNo)
   f
 
 proc normTrim(v: float32): float32 =
@@ -1066,9 +1164,8 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         translateR(m, Point(x: -r.anchor.x, y: -r.anchor.y))
         let trM = r.baseTransform * m
         for p in propagators:
-          let ns = newShape()
-          ns.rs = p.rs
-          ns.opacity = uint8((int(p.opacity) * int(opacity)) div 255)
+          let ns = Shape(p.duplicate())
+          ns.opacity = uint8((uint32(p.opacity) * uint32(opacity) + 0xff'u32) shr 8)
           let curT = p.transform()
           discard ns.transform(trM * (invBase * curT))
           shapes.add(ns)
@@ -1116,7 +1213,7 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       applyTransform(m, t, frameNo)
       local.transform = m
       let op = layerOpacity(t, frameNo)
-      local.opacity = uint8((int(local.opacity) * int(op)) div 255)
+      local.opacity = uint8((uint32(local.opacity) * uint32(op) + 0xff'u32) shr 8)
 
     elif child of LottieFillObj:
       let f = LottieFillObj(child)
@@ -1423,7 +1520,7 @@ proc layerWorldOpacity(layers: seq[LottieLayer]; layer: LottieLayer; frameNo: fl
     if p == nil: break
     # Null layers are transform-only parents; their opacity must not affect children.
     if p.layerType != ltNull:
-      op = (op * int(layerOpacity(p.transform, frameNo))) div 255
+      op = int((uint32(op) * uint32(layerOpacity(p.transform, frameNo)) + 0xff'u32) shr 8)
     pid = p.parentId
     inc guard
   uint8(clamp(op, 0, 255))
@@ -1448,24 +1545,24 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
       let black = fx.black.eval(frameNo)
       let white = fx.white.eval(frameNo)
       let intensity = fx.intensity.eval(frameNo)
-      discard layerScene.tint(int(black.r * 255.0'f32 + 0.5'f32), int(black.g * 255.0'f32 + 0.5'f32), int(black.b * 255.0'f32 + 0.5'f32),
-                              int(white.r * 255.0'f32 + 0.5'f32), int(white.g * 255.0'f32 + 0.5'f32), int(white.b * 255.0'f32 + 0.5'f32),
+      discard layerScene.tint(int(black.r * 255.0'f32), int(black.g * 255.0'f32), int(black.b * 255.0'f32),
+                              int(white.r * 255.0'f32), int(white.g * 255.0'f32), int(white.b * 255.0'f32),
                               float(intensity))
     of etFill:
       let fx = LottieFxFill(e)
       let c = fx.color.eval(frameNo)
       let op = fx.opacity.eval(frameNo)
       let a = int(255.0'f32 * op) and 0xFF
-      discard layerScene.fill(int(c.r * 255.0'f32 + 0.5'f32), int(c.g * 255.0'f32 + 0.5'f32), int(c.b * 255.0'f32 + 0.5'f32), a)
+      discard layerScene.fill(int(c.r * 255.0'f32), int(c.g * 255.0'f32), int(c.b * 255.0'f32), a)
     of etTritone:
       let fx = LottieFxTritone(e)
       let bright = fx.bright.eval(frameNo)
       let midtone = fx.midtone.eval(frameNo)
       let dark = fx.dark.eval(frameNo)
       let blend = clamp(int(fx.blend.eval(frameNo)), 0, 255)
-      discard layerScene.tritone([int(dark.r*255+0.5'f32), int(dark.g*255+0.5'f32), int(dark.b*255+0.5'f32)],
-                                 [int(midtone.r*255+0.5'f32), int(midtone.g*255+0.5'f32), int(midtone.b*255+0.5'f32)],
-                                 [int(bright.r*255+0.5'f32), int(bright.g*255+0.5'f32), int(bright.b*255+0.5'f32)],
+      discard layerScene.tritone([int(dark.r * 255.0'f32), int(dark.g * 255.0'f32), int(dark.b * 255.0'f32)],
+                                 [int(midtone.r * 255.0'f32), int(midtone.g * 255.0'f32), int(midtone.b * 255.0'f32)],
+                                 [int(bright.r * 255.0'f32), int(bright.g * 255.0'f32), int(bright.b * 255.0'f32)],
                                  blend)
     of etGaussianBlur:
       let fx = LottieFxGaussianBlur(e)
@@ -1476,7 +1573,7 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
       let c = fx.color.eval(frameNo)
       let op = clamp(int(fx.opacity.eval(frameNo)), 0, 255)
       let sigma = fx.blurness.eval(frameNo) * BLUR_TO_SIGMA
-      discard layerScene.dropShadow(int(c.r*255+0.5'f32), int(c.g*255+0.5'f32), int(c.b*255+0.5'f32), op,
+      discard layerScene.dropShadow(int(c.r * 255.0'f32), int(c.g * 255.0'f32), int(c.b * 255.0'f32), op,
                                     fx.angle.eval(frameNo), fx.distance.eval(frameNo), sigma, 50)
     of etStroke:
       if layer.masks.len == 0: continue
@@ -1507,9 +1604,9 @@ proc applyEffects(layerScene: Scene; layer: LottieLayer; frameNo: float32; world
       let strokeSize = fx.size.eval(frameNo) * 2.0'f32
       discard shape.strokeWidth(strokeSize)
       let col = fx.color.eval(frameNo)
-      let cr = uint8(clamp(int(col.r * 255.0'f32 + 0.5'f32), 0, 255))
-      let cg = uint8(clamp(int(col.g * 255.0'f32 + 0.5'f32), 0, 255))
-      let cb = uint8(clamp(int(col.b * 255.0'f32 + 0.5'f32), 0, 255))
+      let cr = uint8(clamp(int(col.r * 255.0'f32), 0, 255))
+      let cg = uint8(clamp(int(col.g * 255.0'f32), 0, 255))
+      let cb = uint8(clamp(int(col.b * 255.0'f32), 0, 255))
       if cr != 255'u8 or cg != 255'u8 or cb != 255'u8:
         let isShapeLayer = layer.layerType == ltShape
         proc fillShapes(p: Paint) =
@@ -1632,24 +1729,11 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     return finalizeLayerScene(layerScene)
 
   if layer.layerType != ltShape: return nil # TODO: image/text
-  # Scene carries parent-only opacity; layer's own transform opacity is seeded into
-  # buildGroup context (layer ks is not a child transform in Lottie shape layers).
-  var parentOp = 255
-  var pid = layer.parentId
-  var guard = 0
-  while pid >= 0 and guard < 32:
-    let p = findLayerById(layers, pid)
-    if p == nil: break
-    # Null layers are transform-only parents; their opacity must not affect children.
-    if p.layerType != ltNull:
-      parentOp = (parentOp * int(layerOpacity(p.transform, frameNo))) div 255
-    pid = p.parentId
-    inc guard
   let layerScene = newScene()
+  discard layerScene.opacity(op)
   var ctx = identityCtx()
   ctx.transform = world
-  ctx.opacity = layerOpacity(layer.transform, frameNo)
-  discard layerScene.opacity(uint8(clamp(parentOp, 0, 255)))
+  ctx.opacity = 255
   let g = LottieGroup(objType: otGroup, children: layer.children)
   buildGroup(g, frameNo, layerScene, ctx)
   return finalizeLayerScene(layerScene)

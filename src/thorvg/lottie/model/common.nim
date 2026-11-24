@@ -1,5 +1,7 @@
 ## Common Lottie model value types.
 
+import std/math
+
 type
   LottiePoint* = object
     x*, y*: float32
@@ -30,7 +32,22 @@ proc lerp*(a, b: LottiePoint3; t: float32): LottiePoint3 {.inline.} =
   lp3(lerp(a.x,b.x,t), lerp(a.y,b.y,t), lerp(a.z,b.z,t))
 
 proc lerp*(a, b: LottieColor; t: float32): LottieColor {.inline.} =
-  LottieColor(r: lerp(a.r,b.r,t), g: lerp(a.g,b.g,t), b: lerp(a.b,b.b,t))
+  # C++ 1.1.1: parser uses remap255 (nearbyint, ties-to-even) to get RGB32 keyframes,
+  # then LottieScalarFrame::interpolate lerps RGB32 with truncation: int32(s+(e-s)*t).
+  proc remap255i(v: float32): int32 {.inline.} =
+    let x = v * 255.0'f32
+    let fl = floor(x)
+    let diff = x - fl
+    let r = if diff < 0.5'f32: fl
+            elif diff > 0.5'f32: fl + 1.0'f32
+            elif int(fl) mod 2 == 0: fl
+            else: fl + 1.0'f32
+    clamp(int32(r), 0'i32, 255'i32)
+  template ch(sa, sb: float32): float32 =
+    let ia = remap255i(sa)
+    let ib = remap255i(sb)
+    float32(clamp(int32(float32(ia) + float32(ib - ia) * t), 0'i32, 255'i32)) / 255.0'f32
+  LottieColor(r: ch(a.r, b.r), g: ch(a.g, b.g), b: ch(a.b, b.b))
 
 proc lerp*(a, b: LottiePath; t: float32): LottiePath =
   if a.pts.len != b.pts.len or a.inTangents.len != b.inTangents.len or a.outTangents.len != b.outTangents.len:
