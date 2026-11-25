@@ -81,49 +81,93 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 ### Hallazgos clave
 - **Glyphs embebidos presentes**: `test3.lot` tiene `chars` (6) con `ch/size/style/w/data.shapes/fFamily`; `test8.lot` tiene `chars` (24). `fonts.list` no tiene `fPath/origin/data` embebida, pero los glyphs están en top-level `chars` y C++ los asocia a fonts por `family+style` (`postProcess`).
 - **Ruta C++ esperada para estos casos**: `updateText` usa `updateLocalFont` cuando `font.origin==Local && !font.chars.empty()`. Para test3/test8, esto aplica; no depende de fuentes del sistema.
-- **Font fallback C++ 1.2.0**: `Text::font(name)` busca fonts cargadas por nombre; `font(nullptr)` usa `anyfont()`. `updateURLFont` intenta resolver, luego `font->prepare()`, luego fallback a `anyfont()`. No hay fontconfig en upstream 1.2.0. Para casos sin chars embebidos, la disponibilidad de fuente será blocker.
-- **Goldens**: `tests/lottie/golden/test3|test8/*.rgba` generados con `dump_one` (C++ 1.2.0-dev, `/tmp/opencode/thorvg-lottie-build`), coinciden exactamente con `dump_one` actual en esta máquina.
-- **Nim actual**: `ltText` enum existe; no hay parser/builder/model ty5. `renderer/text.nim` + font loader existen, pero Lottie ty5 no está integrado.
+- **Font fallback C++ 1.2.0**: `Text::font(name)` busca fonts cargadas por nombre; `font(nullptr)` usa `anyfont()`. `updateURLFont` intenta resolver, luego `font->prepare()`, luego fallback a `anyfont()`. No hay fontconfig en upstream 1.2.0.
+- **Goldens**: `tests/lottie/golden/test3|test8/*.rgba` coinciden con `dump_one` (C++ 1.2.0-dev, `/tmp/opencode/thorvg-lottie-build`).
+- **Nim actual**: `ltText` enum existe; no hay parser/builder/model ty5 integrado.
 
-### Matriz de campos ty5 (gate)
+### Decisión de fuentes (vinculante, Fase 0)
+- **Camino local (gate)**: `origin == Local && !chars.empty()` usando shapes de `chars` embebidos en `.lot`. No depende de fontconfig/fuentes del sistema para test3/test8.
+- **Camino externo (fuera de alcance gate)**: fuente por path/URL/base64/loader. Si aparece en una capa activa del gate: error estructurado con nombre de fuente y parar. Sin fallback silencioso que altere paridad.
+- **Riesgo residual**: futuros ty5 con fuentes externas no embebidas requieren fixture de fuentes reproducible offline antes de habilitar.
 
-#### test3 "ThorVG" (1 capa ty5)
-- `t.d.k[0].s`: `s=200, f="Helvetica", t="ThorVG", ca=0, j=0, tr=0, lh=240.000015258789, ls=0, fc=[0.991,0.407,0.016]`
-- `t.p` (follow path): `m=0, f` animado (keyframes), `l=0, a=0, p=1, r=0`
-- `t.m`: `g=1, a=[0,0]`
-- `t.a`: `[]` (sin ranges)
-- Fonts: `Helvetica Regular`, ascent 71.8994140625
-- Chars: 6 glyphs embebidos (`data.shapes`)
+### Harness C++ layout dump (oráculo numérico)
+- **Copia**: script trabaja sobre copia de `upstream/` en `/tmp/opencode/thorvg-layout-upstream` (nunca modifica `upstream/`).
+- **Parche**: `#ifdef LAYOUT_DUMP` en `updateLocalFont` y `updateTextRange` (`tvgLottieBuilder.cpp`) + campo debug en `RenderText` (`tvgLottieBuilder.h`). El parche escribe estado ya calculado por el builder; no reconstruye lógica.
+- **Salida JSONL** por glifo/frame: `layer, frame, line, idx, char, x, y, scale, opacity, fill[r,g,b], stroke[r,g,b], strokeWidth, rangeFactor`.
+  - `x,y,scale`: `shape->transform()` e13/e23/e11 tras commit/range (estado local de shape calculado por builder).
+  - `opacity`: `PAINT(shape)->opacity`.
+  - `fill/stroke`: colores finales del shape (stroke 0,0,0 si strokeFill es gradient; no ocurre en gate).
+  - `rangeFactor`: último `f` no-cero aplicado por `updateTextRange` para el glifo, o 0.
+- **Frames**: primero, último, 3 intermedios, y cada keyframe de `t.d.k` y `t.p` (clamp a [0, op-1]).
+  - test3 (op=360): 0, 89.75000916443776, 179.5000183288755, 201, 269.25002749331327, 359.000036657751 (t.p.f t=0,201,424,426,695.00002830793; 695 clamp a 359).
+  - test8 (op=180): 0, 44.75, 89.5, 134.25, 179 (sin keyframes t.d.k/t.p con `t`).
+- **Comando reproducible**: `tests/lottie/harness/run_layout_dump.sh` compila y vuelca a `tests/lottie/layout_golden/test3.jsonl`, `tests/lottie/layout_golden/test8.jsonl`.
+- **Determinismo**: verificado con dos ejecuciones idénticas (`diff -q` SAME) para test3 y test8.
 
-#### test8 "Range selector (Shape) Triangle" (ty5)
-- `t.d.k[0].s`: `s=19, f="AvertaStd-Black", t="Range\rselector\r(Shape)\rTriangle", j=2, tr=0, lh=20, ls=0, fc=[0.286,0.796,0.804]`
-- `t.a[0]` "Animator 1": `s={t=0,xe=0,ne=0,a=100,b=1,rn=0,sh=4,e animado 0->100->0, r=1}`, `a={s=[40,40,100]}`
-- `t.p`: `{}`; `t.m`: `{g:1,a:[0,0]}`
-- Necesita: range selector shape Triangle, units/range, scale override por glyph, grouping/alignment.
+### Matriz formal de campos ty5 (Fase 0)
 
-#### test8 "text" (ty5)
-- `t.d.k[0].s`: `s=29, f="AvertaStd-Black", t="84_Text_Range selector (Shape)", j=0, tr=0, lh=34.8, ls=0, fc=[1,1,1]`
-- `t.a`: `[]`, `t.p`: `{}`, `t.m`: `{g:1,a:[0,0]}`
-- Caso texto básico con glyphs embebidos.
+| Campo | Default C++ (archivo:línea) | Caso gate | Fase |
+|---|---|---:|---|
+| `t.d.k[].s.f` | `TextDocument.name=nullptr` (`tvgLottieCommon.h:112`), parser copia string (`tvgLottieParser.cpp:122`) | test3,test8 | 1/2 |
+| `t.d.k[].s.t` | `text=nullptr` (`tvgLottieCommon.h:93`), parser copia (`:123`) | test3,test8 | 1/2 |
+| `t.d.k[].s.s` | `size` sin init (`:111`), parser `getFloat()*0.01f` (`:121`) | test3,test8 | 1/2 |
+| `t.d.k[].s.fc` | `color` sin init (`:96`), parser `getValue(doc.color)` (`:136`) | test3,test8 | 1/2 |
+| `t.d.k[].s.sc` | `stroke.color` sin init (`:103`), parser (`:139`) | fuera de alcance, warning contado | 4+ |
+| `t.d.k[].s.sw` | `stroke.width` sin init (`:104`), parser (`:140`) | fuera de alcance, warning contado | 4+ |
+| `t.d.k[].s.j` | `justify=0.0f` (`:113`), parser 0/1/2->0/1.0/0.5 (`:125-130`) | test3(j0),test8(j2,j0) | 2 |
+| `t.d.k[].s.tr` | `tracking=0.0f` (`:112`), parser `getFloat()*0.1f` (`:133`) | test3,test8 | 2 |
+| `t.d.k[].s.lh` | `height` sin init (`:94`), parser `getFloat()` (`:134`) | test3,test8 | 2 |
+| `t.d.k[].s.ls` | `shift` sin init (`:95`), parser `getFloat()` (`:135`) | test3,test8 | 2 |
+| `t.d.k[].s.ca` | `caps=0` (`:114`), parser `getInt()` (`:132`) | test3(ca0) | 2 |
+| `t.d.k[].s.of` | `stroke.below=false` (`:105`), parser `!getBool()` (`:141`) | fuera de alcance, warning contado | 4+ |
+| `t.d.k[].s.ps` | `bbox.pos` zero, `positioned=false` (`:98-101`), parser (`:137`) | fuera de alcance, warning contado | 4+ |
+| `t.d.k[].s.sz` | `bbox.size` zero (`:99`), parser (`:138`) | fuera de alcance, warning contado | 4+ |
+| `t.d.k` keyframes | `LottieTextDoc` frames hold (sin interpolación); `operator()` nearest (`tvgLottieProperty.h:438+`) | test3/test8 static (hold semantics) | 1 (test hold) |
+| `t.m.g` | `AlignOption.group=Chars` (`tvgLottieModel.h:476-480`), parser parseTextAlignmentOption | test3(g1),test8(g1) | 4 |
+| `t.m.a` | `AlignOption.anchor=Point{0,0}` (`:480`), parser | test3(a [0,0]),test8([0,0]) | 4 |
+| `t.p.m` | `LottieTextFollowPath.maskIdx=-1` (`:466`), parser | test3(m0) | 4 |
+| `t.p.f` | `LottieFloat firstMargin=0.0f` (`:463`) | test3(animado) | 4 |
+| `t.p.l` | campo observado en test3 (`l:0`); mapear a path/length en parser/modelo C++ | test3 | 4 |
+| `t.p.r` | `perpendicular=0` (`:464`) | test3(r0) | 4 |
+| `t.p.a` | campo observado en test3 (`a:0`); confirmar semántica C++ exacta en Fase 4 | test3 | 4 |
+| `t.p.p` | campo observado en test3 (`p:1`); confirmar semántica C++ exacta en Fase 4 | test3 | 4 |
+| `t.a[].s.t` | `Based based=Chars` (`tvgLottieModel.h:387`) | test8(s.t0) | 3 |
+| `t.a[].s.xe` | `maxEase=0.0f` (`:376`) | test8(xe0) | 3 |
+| `t.a[].s.ne` | `minEase=0.0f` (`:377`) | test8(ne0) | 3 |
+| `t.a[].s.a` | `maxAmount=0.0f` (`:378`) | test8(a100) | 3 |
+| `t.a[].s.b` | `rangeUnit`/based encoding; C++ parse | test8(b1) | 3 |
+| `t.a[].s.rn` | `random=0` (`:384`) | test8(rn0) | 3 |
+| `t.a[].s.sh` | `shape=Square` (`:382`) | test8(sh4 Triangle) | 3 |
+| `t.a[].s.r` | campo range selector reverse; parser C++ | test8(r1) | 3 |
+| `t.a[].s.sm` | `smoothness=100.0f` (`:379`) | fuera de alcance, warning contado | 3/4 |
+| `t.a[].s.s` | `start=0.0f` (`:380`) | fuera de alcance, warning contado | 3/4 |
+| `t.a[].s.e` | `end=100.0f` (`:381`) | test8(animado 0->100->0) | 3 |
+| `t.a[].s.o` | `offset=0.0f` (`:375`) | fuera de alcance, warning contado | 3/4 |
+| `t.a[].a.p` | `style.position=Point{0,0}` (`:357`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.s` | `style.scale=Point{100,100}` (`:358`) | test8([40,40,100]) | 3 |
+| `t.a[].a.a` | anchor/transform-related range prop; confirmar mapeo C++ | fuera de alcance, warning contado | 3/4 |
+| `t.a[].a.r` | `style.rotation=0.0f` (`:362`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.o` | `style.opacity=255` (`:365`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.fc` | `style.fillColor=RGB32{255,255,255}`, flag false (`:355,367`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.sc` | `style.strokeColor=RGB32{255,255,255}`, flag false (`:356,368`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.sw` | `style.strokeWidth=0.0f`, flag false (`:361,369`) | fuera de alcance, warning contado | 3 |
+| `t.a[].a.t` | tracking/letterSpace range prop; confirmar mapeo C++ (`style.letterSpace=0.0f` `:359`) | fuera de alcance, warning contado | 3/4 |
+| `fonts.list[].fName` | `LottieFont.name=nullptr` (`tvgLottieModel.h:433`) | test3,test8 | 1 |
+| `fonts.list[].fFamily` | `family=nullptr` (`:434`) | test3,test8 | 1 |
+| `fonts.list[].fStyle` | `style=nullptr` (`:435`) | test3,test8 | 1 |
+| `fonts.list[].ascent` | `ascent=0.0f` (`:438`) | test3(71.8994140625),test8(73.599) | 1/2 |
+| `fonts.list[].origin` | `origin=Local` (`:439`) | implícito Local en gate | 1 |
+| `fonts.list[].fPath/data` | `b64src=nullptr,path=false` (`:431,440`) | fuera de alcance, warning contado | 4+ (stop si gate lo requiere) |
+| `chars[].ch` | `LottieGlyph.code=nullptr` (`tvgLottieModel.h:307`) | test3,test8 | 1 |
+| `chars[].size` | `uint16_t size` sin init (`:310`) | test3,test8 | 1 |
+| `chars[].style` | `style=nullptr` (`:309`) | test3,test8 | 1 |
+| `chars[].w` | `float width` sin init (`:306`) | test3,test8 | 1/2 |
+| `chars[].data.shapes` | `children` shapes (`:305`) | test3,test8 | 1/2 |
+| `chars[].fFamily` | `family=nullptr` (`:308`) | test3,test8 | 1 (postProcess) |
 
-### Matriz de cobertura requerida (plan revisado)
-- Documento `t.d.k[].s`: `f,fc,sc,sw,fs,sz,ps,t,j,tr,lh,ls,ca,of` (cubrir presentes; validar defaults C++).
-- Rangos `t.a[]`: selector `s` (`t,xe,ne,a,b,rn,sh,r,sm,s,e,o`) y props `a` (`p,s,a,r,o,fc,sc,sw,t`).
-- Opciones `t.m` (`g,a`) y follow path `t.p` (`m,f,l,r,a` + campos observados `p`).
-- Fuentes: `fonts.list` + `chars` embebidos; orígenes/path/data según aparezcan.
-- Keyframes de documento de texto: hold (sin interpolación) - añadir test.
+### Campos observados en gate no listados explícitamente en AGENTS
+- `t.p.p` (test3=1), `t.p.l` (test3=0), `t.p.a` (test3=0): presentes en test3. Se mapean en matriz como Fase 4 con confirmación de semántica C++ antes de implementar.
+- `t.a[].s.r` (test8=1): presente; incluido en matriz.
 
-### Decisión de fuentes (Fase 0, obligatoria)
-- **Decisión**: para `test3/test8` y cualquier caso de gate con glyphs embebidos, la ruta primaria es **local glyph/char path** (equivalente a `updateLocalFont`), usando shapes de `chars` embebidos en `.lot`. No se depende de fontconfig ni de fuentes del sistema para estos casos.
-- **Fallback general ty5** (fuera de estos casos): soportar carga explícita de fuentes via ThorVG font loader (`loadFont`/datos embebidos/path) cuando el asset lo provea; si falta fuente requerida, reportar error/diagnóstico claro. No usar fallback silencioso que altere paridad.
-- **Riesgo residual**: si futuros goldens ty5 requieren fuentes externas no embebidas, se debe fijar fixture de fuentes reproducible offline antes de habilitar el caso.
-- **Estado**: decisión suficiente para pasar a Fase 1 solo para el alcance test3/test8 con chars embebidos. Cualquier caso que requiera fuente externa no resuelta debe parar y documentarse.
-
-### Harness/oráculo C++ (pendiente de completar)
-- Existe `tests/lottie/harness/dump_lottie.cpp` (props/PPM/RGBA) enlazado contra build C++ 1.2.0-dev.
-- **Pendiente**: extender o crear harness que vuelque layout intermedio ty5 por capa/frame: líneas, posición de glifo, factor de range, transform por glifo. Requiere acceso a builder interno/RenderText o instrumentación equivalente. Hasta entonces, oráculo numérico primario = golden RGBA + propiedades de modelo; layout se validará con tests dirigidos y comparación C++ cuando el harness esté instrumentado.
-
-### Siguientes pasos (Fase 1)
-- Añadir modelo Nim para TextDocument/LottieTextDoc/LottieFont/LottieGlyph/LottieTextRange/LottieTextFollowPath.
-- Parser ty5 (`t.d`, `t.a`, `t.p`, `t.m`), `fonts.list`, `chars`, postProcess font-glyph.
-- Tests de parser primero (campos/defaults/hold doc keyframes); warning estructurado/contado para campos desconocidos.
+### Política de campos desconocidos (Fase 1)
+- Warning estructurado y contado; nunca ignorar en silencio. Test de cobertura: recorre JSON de test3/test8 y falla si hay clave no consumida por parser y ausente de la matriz.
