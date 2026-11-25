@@ -2070,8 +2070,40 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
   let textScale = doc.size / 100.0'f32
   if textScale <= 0.0'f32: return
-  let baseY = -font.ascent + doc.shift / textScale
+  let baseY = 0.0'f32 - doc.shift / textScale
   let nChars = float32(doc.text.len)
+
+  # Precompute line widths for justify (C++: layout.x += justify * (bbox.size.x - cursor.x * scale))
+  var lineWidths: seq[float32] = @[]
+  block:
+    var p2 = 0
+    var curW = 0.0'f32
+    while p2 < doc.text.len:
+      let c2 = doc.text[p2]
+      if c2 == '\r' or c2 == '\n' or ord(c2) == 3:
+        lineWidths.add(curW)
+        curW = 0.0'f32
+        inc p2
+        continue
+      var cap2 = 1.0'f32
+      let g2 = searchGlyph(font, doc.text, p2, doc.caps, cap2)
+      if g2 == nil:
+        inc p2
+        continue
+      curW += (g2.width + doc.tracking) * cap2
+      let step2 = max(1, int(g2.len))
+      p2 += step2
+    lineWidths.add(curW)
+
+  proc lineJustifyOffsetPx(lineIdx: int): float32 =
+    let lw = if lineIdx >= 0 and lineIdx < lineWidths.len: lineWidths[lineIdx] else: 0.0'f32
+    let boxW = doc.bboxSize.x
+    let baseX = doc.bboxPos.x
+    if boxW > 0.0'f32:
+      baseX + doc.justify * (boxW - lw * textScale)
+    else:
+      # No bbox: C++ layout.x += justify * (0 - cursor.x*scale)
+      baseX + doc.justify * (-lw * textScale)
 
   # follow path
   var fp: FollowPathState
@@ -2219,7 +2251,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       discard shape.transform(world * m)
     else:
       m.e11 = gxScale; m.e22 = gyScale
-      m.e13 = cursorX * textScale
+      m.e13 = cursorX * textScale + lineJustifyOffsetPx(lineCount)
       m.e23 = (baseY + lineY) * textScale
       discard shape.transform(world * m)
 
