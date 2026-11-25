@@ -1751,6 +1751,109 @@ proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: 
 
 proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene
 
+proc findTextFont(comp: LottieComposition; name: string): LottieFont =
+  for f in comp.fonts:
+    if f != nil and f.name == name:
+      return f
+  nil
+
+proc searchGlyph(font: LottieFont; p: string; pos: var int; caps: uint8; capScale: var float32): LottieGlyph =
+  capScale = 1.0'f32
+  if pos >= p.len: return nil
+  var ch = p[pos .. pos]
+  if caps != 0 and pos < p.len:
+    let c = p[pos]
+    if c >= 'a' and c <= 'z':
+      ch = $(char(ord(c) - ord('a') + ord('A')))
+      if caps == 2: capScale = 0.7'f32
+  for g in font.chars:
+    if g == nil: continue
+    let gl = max(1, int(g.len))
+    if pos + gl <= p.len:
+      let seg = p[pos ..< pos + gl]
+      if seg == g.code or seg == ch:
+        return g
+    if g.code == ch:
+      return g
+  nil
+
+proc appendGlyphPath(shape: Shape; glyph: LottieGlyph; frameNo: float32) =
+  for child in glyph.shapes:
+    if child == nil: continue
+    if child.objType == otGroup:
+      let grp = LottieGroup(child)
+      for gc in grp.children:
+        if gc != nil and gc.objType == otPath:
+          let po = LottiePathObj(gc)
+          let path = po.path.eval(frameNo)
+          buildPath(shape, path)
+    elif child.objType == otPath:
+      let po = LottiePathObj(child)
+      let path = po.path.eval(frameNo)
+      buildPath(shape, path)
+
+proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; world: Matrix; op: uint8): Scene =
+  result = newScene()
+  discard result.opacity(op)
+  if layer.children.len == 0: return
+  let obj = layer.children[0]
+  if obj == nil or obj.objType != otText: return
+  let text = LottieTextObj(obj)
+  if text.doc == nil: return
+  let doc = text.doc.eval(frameNo)
+  if doc.text.len == 0: return
+  let font = findTextFont(comp, doc.name)
+  if font == nil:
+    comp.warnings.add("text layer '" & layer.name & "': missing font '" & doc.name & "'")
+    return
+  if font.origin != 0 or font.chars.len == 0:
+    comp.warnings.add("text layer '" & layer.name & "': unsupported font origin/chars for '" & doc.name & "'")
+    return
+
+  let scale = doc.size / 100.0'f32
+  if scale <= 0.0'f32: return
+  var cursorX = 0.0'f32
+  let baseY = -font.ascent + (if scale != 0.0'f32: doc.shift / scale else: 0.0'f32)
+  var pos = 0
+  while pos < doc.text.len:
+    let c = doc.text[pos]
+    if c == '\r' or c == '\n' or ord(c) == 3:
+      inc pos
+      continue
+    var capScale = 1.0'f32
+    let glyph = searchGlyph(font, doc.text, pos, doc.caps, capScale)
+    if glyph == nil:
+      inc pos
+      continue
+    let adv = (glyph.width + doc.tracking) * capScale
+    let shape = newShape()
+    discard shape.reset()
+    appendGlyphPath(shape, glyph, frameNo)
+    let cr = uint8(clamp(int(doc.color.r * 255.0'f32 + 0.5'f32), 0, 255))
+    let cg = uint8(clamp(int(doc.color.g * 255.0'f32 + 0.5'f32), 0, 255))
+    let cb = uint8(clamp(int(doc.color.b * 255.0'f32 + 0.5'f32), 0, 255))
+    discard shape.fill(cr, cg, cb, 255'u8)
+    if doc.strokeWidth > 0.0'f32:
+      let sr = uint8(clamp(int(doc.strokeColor.r * 255.0'f32 + 0.5'f32), 0, 255))
+      let sg = uint8(clamp(int(doc.strokeColor.g * 255.0'f32 + 0.5'f32), 0, 255))
+      let sb = uint8(clamp(int(doc.strokeColor.b * 255.0'f32 + 0.5'f32), 0, 255))
+      discard shape.strokeWidth(doc.strokeWidth / scale)
+      discard shape.strokeFill(sr, sg, sb, 255'u8)
+      discard shape.strokeJoin(StrokeJoin.Round)
+      if doc.strokeBelow:
+        discard shape.order(false)
+      else:
+        discard shape.order(true)
+    var m = identity()
+    translate(m, pt(cursorX, baseY))
+    scale(m, pt(scale * capScale, scale * capScale))
+    let finalM = world * m
+    discard shape.transform(finalM)
+    discard result.add(shape)
+    cursorX += adv
+    let step = max(1, int(glyph.len))
+    pos += step
+
 proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene =
   if layer == nil or layer.hidden: return nil
   if addToRoot and layer.matteSrc: return nil
@@ -1821,7 +1924,11 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
         discard layerScene.add(pic)
     return finalizeLayerScene(layerScene)
 
-  if layer.layerType != ltShape: return nil # TODO: image/text
+  if layer.layerType == ltText:
+    let textScene = buildTextLayer(comp, layers, layer, frameNo, world, op)
+    return finalizeLayerScene(textScene)
+
+  if layer.layerType != ltShape: return nil
   let layerScene = newScene()
   discard layerScene.opacity(op)
   var ctx = identityCtx()
