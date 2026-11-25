@@ -171,3 +171,8 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 
 ### Política de campos desconocidos (Fase 1)
 - Warning estructurado y contado; nunca ignorar en silencio. Test de cobertura: recorre JSON de test3/test8 y falla si hay clave no consumida por parser y ausente de la matriz.
+
+## ty5 followPath r/a/l - evidencia (2026-11-25)
+- **C++ 1.2.0 parser** (`tvgLottieParser.cpp:parseTextFollowPath`): solo parsea `m,f,p`; ignora `l,a,r` con `skip()`.
+- **Sensibilidad test3** (frames 0,89.75000916443776,179.5000183288755,201,269.25002749331327,359.000036657751; dump_layout C++ 1.2.0-dev): mutar `t.p.r` a 0/1 y `t.p.a` a 0/1 produce JSONL idéntico al base en todos los frames comparados. `pathLength(l)` no es campo de entrada aplicado por parser; revisar solo si evidencia futura lo requiere.
+- **Decisión**: `reversePath/forceAlignment/pathLength` quedan como **no aplicados por referencia C++ 1.2.0**; mantener parseo estructurado/warning contado si aparecen en casos gate, sin implementar semántica inventada. Reabrir solo con evidencia de diferencia en C++ reference/gate.

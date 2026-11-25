@@ -2070,8 +2070,13 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
   let textScale = doc.size / 100.0'f32
   if textScale <= 0.0'f32: return
-  let baseY = 0.0'f32 - doc.shift / textScale
   let nChars = float32(doc.text.len)
+  # C++ layout: ascent = font.ascent*scale; if (ascent > doc.bbox.size.y) ascent = doc.bbox.size.y;
+  # layout.y = doc.bbox.pos.y + ascent - doc.shift
+  var ascentPx = font.ascent * textScale
+  if doc.bboxSize.y > 0.0'f32 and ascentPx > doc.bboxSize.y: ascentPx = doc.bboxSize.y
+  if doc.bboxSize.y == 0.0'f32: ascentPx = 0.0'f32
+  let layoutYPx = doc.bboxPos.y + ascentPx - doc.shift
 
   # Precompute line widths for justify (C++: layout.x += justify * (bbox.size.x - cursor.x * scale))
   var lineWidths: seq[float32] = @[]
@@ -2124,16 +2129,30 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
   var totalLineSpace = 0.0'f32
   var lineSpace = 0.0'f32
 
+  var lineWrapped = false
+  proc nextWordWidth(p0: int): float32 =
+    var p = p0
+    while p < doc.text.len:
+      let cc = doc.text[p]
+      if cc == ' ' or cc == '\r' or cc == '\n' or ord(cc) == 3: break
+      var capW = 1.0'f32
+      let gw = searchGlyph(font, doc.text, p, doc.caps, capW)
+      if gw == nil: inc p; continue
+      result += (gw.width + doc.tracking) * capW
+      p += max(1, int(gw.len))
+
   while pos < doc.text.len:
     let c = doc.text[pos]
-    if c == '\r' or c == '\n' or ord(c) == 3:
+    if lineWrapped or c == '\r' or c == '\n' or ord(c) == 3:
       # newline: C++-like line advance
       lineY = (float32(lineCount + 1) * doc.height + totalLineSpace) / textScale
       inc lineCount
       totalLineSpace += lineSpace
       lineSpace = 0.0'f32
       cursorX = 0.0'f32
-      inc pos
+      if not lineWrapped:
+        inc pos
+      lineWrapped = false
       continue
 
     var capScale = 1.0'f32
@@ -2145,7 +2164,15 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
     let adv = (glyph.width + doc.tracking) * capScale
     if c == ' ':
+      # C++ word wrap: if next word overflows box, break at this space
+      if doc.bboxSize.x > 0.0'f32 and (cursorX + adv + nextWordWidth(pos + 1)) * textScale >= doc.bboxSize.x:
+        inc pos
+        lineWrapped = true
+        continue
       inc spaceCount
+    elif doc.bboxSize.x > 0.0'f32 and cursorX > 0.0'f32 and (cursorX + adv) * textScale > doc.bboxSize.x:
+      lineWrapped = true
+      continue
 
     # Range styles
     var scaling = pt(1.0'f32, 1.0'f32)
@@ -2252,7 +2279,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
     else:
       m.e11 = gxScale; m.e22 = gyScale
       m.e13 = cursorX * textScale + lineJustifyOffsetPx(lineCount)
-      m.e23 = (baseY + lineY) * textScale
+      m.e23 = layoutYPx + lineY * textScale
       discard shape.transform(world * m)
 
     discard result.add(shape)
