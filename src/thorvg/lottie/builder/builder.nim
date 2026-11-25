@@ -1757,7 +1757,7 @@ proc findTextFont(comp: LottieComposition; name: string): LottieFont =
       return f
   nil
 
-proc searchGlyph(font: LottieFont; p: string; pos: var int; caps: uint8; capScale: var float32): LottieGlyph =
+proc searchGlyph(font: LottieFont; p: string; pos: int; caps: uint8; capScale: var float32): LottieGlyph =
   capScale = 1.0'f32
   if pos >= p.len: return nil
   var ch = p[pos .. pos]
@@ -1771,7 +1771,7 @@ proc searchGlyph(font: LottieFont; p: string; pos: var int; caps: uint8; capScal
     let gl = max(1, int(g.len))
     if pos + gl <= p.len:
       let seg = p[pos ..< pos + gl]
-      if seg == g.code or seg == ch:
+      if g.code == seg or g.code == ch:
         return g
     if g.code == ch:
       return g
@@ -2037,15 +2037,14 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       let sc2 = textScale * capScale
       m.e11 = sc2; m.e22 = sc2
       if perpendicular:
-        # rotate around glyph center in local space
         let ca = cos(angle); let sa = sin(angle)
         m.e11 = sc2 * ca; m.e12 = -sc2 * sa
         m.e21 = sc2 * sa; m.e22 = sc2 * ca
         m.e13 = pth.x * textScale - widthHalf * m.e11
-        m.e23 = (pth.y + baseY) * textScale - widthHalf * m.e21
+        m.e23 = pth.y * textScale - widthHalf * m.e21
       else:
         m.e13 = (pth.x - widthHalf) * textScale
-        m.e23 = (pth.y + baseY) * textScale
+        m.e23 = pth.y * textScale
       let finalM = world * m
       discard shape.transform(finalM)
     else:

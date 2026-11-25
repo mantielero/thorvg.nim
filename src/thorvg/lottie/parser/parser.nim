@@ -1078,10 +1078,18 @@ proc parseTextFollowPath(j: JsonNode; warnings: var seq[string]; ctx: string): L
     case k
     of "m": result.mask = asInt(v, 0)
     of "f": result.firstMargin = parseScalarProp(v, 0.0'f32)
-    of "l": result.pathLength = asFloat(v, 0.0'f32)
-    of "a": result.forceAlignment = asInt(v, 0) != 0
-    of "r": result.perpendicular = asInt(v, 0) != 0
-    of "p": result.reversePath = asInt(v, 0) != 0
+    of "p":
+      let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
+      result.perpendicular = asInt(pv, 0) != 0
+    of "l":
+      let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
+      result.pathLength = asFloat(pv, 0.0'f32)
+    of "a":
+      let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
+      result.forceAlignment = asInt(pv, 0) != 0
+    of "r":
+      let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
+      result.reversePath = asInt(pv, 0) != 0
     else: addUnknownWarn(warnings, ctx & ".p", k)
 
 proc parseTextRange(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextRange =
