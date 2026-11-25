@@ -1250,8 +1250,7 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
     for mj in j["masksProperties"]:
       if mj.kind == JObject:
         let m = parseMask(mj)
-        if m.mode != MaskMethod.None:
-          result.masks.add(m)
+        result.masks.add(m)
   if j.hasKey("ef") and j["ef"].kind == JArray:
     result.effects = parseEffects(j["ef"])
   if j.hasKey("t") and j["t"].kind == JObject:

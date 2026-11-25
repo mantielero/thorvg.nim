@@ -1792,6 +1792,182 @@ proc appendGlyphPath(shape: Shape; glyph: LottieGlyph; frameNo: float32) =
       let path = po.path.eval(frameNo)
       buildPath(shape, path)
 
+type
+  FollowPathState = object
+    cmds: seq[PathCommand]
+    pts: seq[Point]
+    idxCmd: int
+    idxPt: int
+    startPt: int
+    totalLen: float32
+    currentLen: float32
+
+proc fpRewind(fp: var FollowPathState) =
+  fp.idxCmd = 0
+  fp.idxPt = 0
+  fp.startPt = 0
+  fp.currentLen = 0.0'f32
+
+proc fpShift(fp: var FollowPathState) =
+  if fp.idxCmd >= fp.cmds.len: return
+  case fp.cmds[fp.idxCmd]
+  of PathCommand.MoveTo:
+    fp.startPt = fp.idxPt
+    inc fp.idxPt
+  of PathCommand.LineTo:
+    inc fp.idxPt
+  of PathCommand.CubicTo:
+    fp.idxPt += 3
+  of PathCommand.Close:
+    discard
+  inc fp.idxCmd
+
+proc fpLength(fp: FollowPathState): float32 =
+  if fp.idxCmd >= fp.cmds.len: return 0.0'f32
+  case fp.cmds[fp.idxCmd]
+  of PathCommand.MoveTo: 0.0'f32
+  of PathCommand.LineTo:
+    if fp.idxPt <= 0 or fp.idxPt >= fp.pts.len: 0.0'f32 else: length(fp.pts[fp.idxPt - 1], fp.pts[fp.idxPt])
+  of PathCommand.CubicTo:
+    if fp.idxPt <= 0 or fp.idxPt + 2 >= fp.pts.len: 0.0'f32
+    else: length(initBezier(fp.pts[fp.idxPt - 1], fp.pts[fp.idxPt], fp.pts[fp.idxPt + 1], fp.pts[fp.idxPt + 2]))
+  of PathCommand.Close:
+    if fp.idxPt <= 0 or fp.startPt >= fp.pts.len: 0.0'f32 else: length(fp.pts[fp.idxPt - 1], fp.pts[fp.startPt])
+
+proc fpSplit(fp: FollowPathState; dLen, lenSearched: float32; angle: var float32): Point =
+  if fp.idxCmd >= fp.cmds.len: return pt(0,0)
+  case fp.cmds[fp.idxCmd]
+  of PathCommand.MoveTo:
+    angle = 0.0'f32
+    return pt(0,0)
+  of PathCommand.LineTo:
+    if fp.idxPt <= 0 or fp.idxPt >= fp.pts.len: return pt(0,0)
+    let dp = fp.pts[fp.idxPt] - fp.pts[fp.idxPt - 1]
+    angle = arctan2(dp.y, dp.x)
+    return pt(0,0)
+  of PathCommand.CubicTo:
+    if fp.idxPt <= 0 or fp.idxPt + 2 >= fp.pts.len: return pt(0,0)
+    let bz = initBezier(fp.pts[fp.idxPt - 1], fp.pts[fp.idxPt], fp.pts[fp.idxPt + 1], fp.pts[fp.idxPt + 2])
+    let t = bz.at(lenSearched - fp.currentLen, dLen)
+    angle = degToRad(bz.angle(t))
+    return bz.at(t)
+  of PathCommand.Close:
+    if fp.idxPt <= 0 or fp.startPt >= fp.pts.len: return pt(0,0)
+    let dp = fp.pts[fp.startPt] - fp.pts[fp.idxPt - 1]
+    angle = arctan2(dp.y, dp.x)
+    return pt(0,0)
+
+proc fpPrepare(fp: var FollowPathState; layer: LottieLayer; frameNo, textScale: float32): float32 =
+  ## Prepare follow path from mask; returns firstMargin in scaled space.
+  fp.cmds = @[]
+  fp.pts = @[]
+  fp.totalLen = 0.0'f32
+  fpRewind(fp)
+  if layer == nil: return 0.0'f32
+  if layer.children.len == 0: return 0.0'f32
+  let obj = layer.children[0]
+  if obj == nil or obj.objType != otText: return 0.0'f32
+  let text = LottieTextObj(obj)
+  if text.followPath == nil: return 0.0'f32
+  let f = text.followPath
+  let maskIdx = f.mask
+  if maskIdx < 0 or maskIdx >= layer.masks.len: return 0.0'f32
+  let mask = layer.masks[maskIdx]
+  if mask == nil: return 0.0'f32
+  let lp = mask.path.eval(frameNo)
+  var rp = lottiePathToRenderPath(lp)
+  if textScale != 0.0'f32 and textScale != 1.0'f32:
+    var sm = identity()
+    scale(sm, pt(1.0'f32 / textScale, 1.0'f32 / textScale))
+    for i in 0 ..< rp.pts.len:
+      rp.pts[i] = rp.pts[i] * sm
+  fp.cmds = rp.cmds
+  fp.pts = rp.pts
+  fp.totalLen = pathLength(fp.cmds, fp.pts)
+  fpRewind(fp)
+  f.firstMargin.eval(frameNo) / (if textScale != 0.0'f32: textScale else: 1.0'f32)
+
+proc fpPosition(fp: var FollowPathState; lenSearched: float32; angle: var float32): Point =
+  if fp.cmds.len == 0 or fp.pts.len == 0:
+    angle = 0.0'f32
+    return pt(0,0)
+  let closed = fp.cmds.len > 0 and fp.cmds[fp.cmds.len - 1] == PathCommand.Close
+  var lenS = lenSearched
+  # before start
+  if lenS <= 0.0'f32:
+    if closed:
+      if fp.totalLen > 0.0'f32:
+        while lenS < 0.0'f32: lenS += fp.totalLen
+    else:
+      if fp.idxCmd >= fp.cmds.len - 1:
+        return if fp.startPt < fp.pts.len: fp.pts[fp.startPt] else: pt(0,0)
+      let nextCmd = fp.cmds[fp.idxCmd + 1]
+      case nextCmd
+      of PathCommand.LineTo:
+        if fp.idxPt + 1 < fp.pts.len:
+          let dp = fp.pts[fp.idxPt + 1] - fp.pts[fp.idxPt]
+          angle = arctan2(dp.y, dp.x)
+          return pt(fp.pts[fp.idxPt].x + lenS * cos(angle), fp.pts[fp.idxPt].y + lenS * sin(angle))
+      of PathCommand.CubicTo:
+        if fp.idxPt + 3 < fp.pts.len:
+          let bz = initBezier(fp.pts[fp.idxPt], fp.pts[fp.idxPt + 1], fp.pts[fp.idxPt + 2], fp.pts[fp.idxPt + 3])
+          angle = degToRad(bz.angle(0.0001'f32))
+          return pt(fp.pts[fp.idxPt].x + lenS * cos(angle), fp.pts[fp.idxPt].y + lenS * sin(angle))
+      else:
+        angle = 0.0'f32
+        return if fp.startPt < fp.pts.len: fp.pts[fp.startPt] else: pt(0,0)
+  # beyond end
+  if lenS >= fp.totalLen and fp.totalLen > 0.0'f32:
+    if closed:
+      while lenS > fp.totalLen: lenS -= fp.totalLen
+    else:
+      while fp.idxCmd < fp.cmds.len - 1: fpShift(fp)
+      let lenOver = lenS - fp.totalLen
+      if fp.idxCmd < fp.cmds.len:
+        case fp.cmds[fp.idxCmd]
+        of PathCommand.MoveTo:
+          angle = 0.0'f32
+          return if fp.idxPt < fp.pts.len: fp.pts[fp.idxPt] else: pt(0,0)
+        of PathCommand.LineTo:
+          if fp.idxPt > 0 and fp.idxPt < fp.pts.len:
+            let dp = fp.pts[fp.idxPt] - fp.pts[fp.idxPt - 1]
+            angle = arctan2(dp.y, dp.x)
+            return pt(fp.pts[fp.idxPt].x + lenOver * cos(angle), fp.pts[fp.idxPt].y + lenOver * sin(angle))
+        of PathCommand.CubicTo:
+          if fp.idxPt > 0 and fp.idxPt + 2 < fp.pts.len:
+            let bz = initBezier(fp.pts[fp.idxPt - 1], fp.pts[fp.idxPt], fp.pts[fp.idxPt + 1], fp.pts[fp.idxPt + 2])
+            angle = degToRad(bz.angle(0.999'f32))
+            return pt(fp.pts[fp.idxPt + 2].x + lenOver * cos(angle), fp.pts[fp.idxPt + 2].y + lenOver * sin(angle))
+        of PathCommand.Close:
+          if fp.idxPt > 0 and fp.startPt < fp.pts.len:
+            let dp = fp.pts[fp.startPt] - fp.pts[fp.idxPt - 1]
+            angle = arctan2(dp.y, dp.x)
+            return pt(fp.pts[fp.idxPt - 1].x + lenOver * cos(angle), fp.pts[fp.idxPt - 1].y + lenOver * sin(angle))
+      return pt(0,0)
+
+  if lenS < fp.currentLen:
+    fpRewind(fp)
+  while fp.idxCmd < fp.cmds.len:
+    let dLen = fpLength(fp)
+    if fp.currentLen + dLen < lenS:
+      fpShift(fp)
+      fp.currentLen += dLen
+      continue
+    let p = fpSplit(fp, dLen, lenS, angle)
+    # for LineTo/Close/MoveTo split returns pt(0,0), compute by interpolation
+    if fp.cmds[fp.idxCmd] == PathCommand.LineTo and fp.idxPt > 0 and fp.idxPt < fp.pts.len:
+      let p0 = fp.pts[fp.idxPt - 1]; let p1 = fp.pts[fp.idxPt]
+      let t = if dLen > 0.0'f32: (lenS - fp.currentLen) / dLen else: 0.0'f32
+      return pt(p0.x + (p1.x-p0.x)*t, p0.y + (p1.y-p0.y)*t)
+    if fp.cmds[fp.idxCmd] == PathCommand.Close and fp.idxPt > 0 and fp.startPt < fp.pts.len:
+      let p0 = fp.pts[fp.idxPt - 1]; let p1 = fp.pts[fp.startPt]
+      let t = if dLen > 0.0'f32: (lenS - fp.currentLen) / dLen else: 0.0'f32
+      return pt(p0.x + (p1.x-p0.x)*t, p0.y + (p1.y-p0.y)*t)
+    if fp.cmds[fp.idxCmd] == PathCommand.MoveTo:
+      return if fp.startPt < fp.pts.len: fp.pts[fp.startPt] else: pt(0,0)
+    return p
+  pt(0,0)
+
 proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; world: Matrix; op: uint8): Scene =
   result = newScene()
   discard result.opacity(op)
@@ -1810,10 +1986,19 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
     comp.warnings.add("text layer '" & layer.name & "': unsupported font origin/chars for '" & doc.name & "'")
     return
 
-  let scale = doc.size / 100.0'f32
-  if scale <= 0.0'f32: return
+  let textScale = doc.size / 100.0'f32
+  if textScale <= 0.0'f32: return
   var cursorX = 0.0'f32
-  let baseY = -font.ascent + (if scale != 0.0'f32: doc.shift / scale else: 0.0'f32)
+  let baseY = -font.ascent + doc.shift / textScale
+  # follow path
+  var fp: FollowPathState
+  var hasFollow = false
+  var firstMargin = 0.0'f32
+  var perpendicular = false
+  if text.followPath != nil and text.followPath.mask >= 0 and text.followPath.mask < layer.masks.len:
+    hasFollow = true
+    perpendicular = text.followPath.perpendicular
+    firstMargin = fpPrepare(fp, layer, frameNo, textScale)
   var pos = 0
   while pos < doc.text.len:
     let c = doc.text[pos]
@@ -1837,7 +2022,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       let sr = uint8(clamp(int(doc.strokeColor.r * 255.0'f32 + 0.5'f32), 0, 255))
       let sg = uint8(clamp(int(doc.strokeColor.g * 255.0'f32 + 0.5'f32), 0, 255))
       let sb = uint8(clamp(int(doc.strokeColor.b * 255.0'f32 + 0.5'f32), 0, 255))
-      discard shape.strokeWidth(doc.strokeWidth / scale)
+      discard shape.strokeWidth(doc.strokeWidth / textScale)
       discard shape.strokeFill(sr, sg, sb, 255'u8)
       discard shape.strokeJoin(StrokeJoin.Round)
       if doc.strokeBelow:
@@ -1845,10 +2030,29 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       else:
         discard shape.order(true)
     var m = identity()
-    translate(m, pt(cursorX, baseY))
-    scale(m, pt(scale * capScale, scale * capScale))
-    let finalM = world * m
-    discard shape.transform(finalM)
+    if hasFollow:
+      var angle = 0.0'f32
+      let widthHalf = glyph.width * 0.5'f32
+      let pth = fpPosition(fp, cursorX + widthHalf + firstMargin, angle)
+      let sc2 = textScale * capScale
+      m.e11 = sc2; m.e22 = sc2
+      if perpendicular:
+        # rotate around glyph center in local space
+        let ca = cos(angle); let sa = sin(angle)
+        m.e11 = sc2 * ca; m.e12 = -sc2 * sa
+        m.e21 = sc2 * sa; m.e22 = sc2 * ca
+        m.e13 = pth.x * textScale - widthHalf * m.e11
+        m.e23 = (pth.y + baseY) * textScale - widthHalf * m.e21
+      else:
+        m.e13 = (pth.x - widthHalf) * textScale
+        m.e23 = (pth.y + baseY) * textScale
+      let finalM = world * m
+      discard shape.transform(finalM)
+    else:
+      translate(m, pt(cursorX, baseY))
+      scale(m, pt(textScale * capScale, textScale * capScale))
+      let finalM = world * m
+      discard shape.transform(finalM)
     discard result.add(shape)
     cursorX += adv
     let step = max(1, int(glyph.len))
