@@ -214,6 +214,104 @@ type
     u*, p*: string
     embedded*: bool
 
+  LottieTextDocument* = object
+    text*: string
+    name*: string        # font name (f)
+    size*: float32       # font size (s), px
+    tracking*: float32   # (tr)
+    justify*: float32    # 0=left, 0.5=center, 1=right
+    height*: float32     # line height (lh)
+    shift*: float32      # baseline shift (ls)
+    caps*: uint8         # 0 regular,1 allcaps,2 smallcaps
+    color*: LottieColor  # fc (0..1)
+    strokeColor*: LottieColor # sc
+    strokeWidth*: float32     # sw
+    strokeBelow*: bool        # of (C++: below = !of)
+    bboxPos*: LottiePoint
+    bboxSize*: LottiePoint
+    bboxPositioned*: bool
+
+  LottieTextDocFrame* = object
+    value*: LottieTextDocument
+    no*: float32
+    hold*: bool
+
+  LottieTextDocProp* = ref object
+    frames*: seq[LottieTextDocFrame]
+    value*: LottieTextDocument
+    hasFrames*: bool
+    ix*: uint8
+    sid*: uint32
+
+  LottieGlyph* = ref object
+    code*: string
+    family*: string
+    style*: string
+    width*: float32
+    size*: uint16
+    len*: uint8
+    shapes*: seq[LottieObject] # parsed shape group children
+
+  LottieFont* = ref object
+    name*: string
+    family*: string
+    style*: string
+    ascent*: float32
+    origin*: int # 0 Local, 1 CssURL, 2 ScriptURL, 3 FontURL
+    path*: string
+    data*: string
+    chars*: seq[LottieGlyph]
+
+  LottieTextRangeSelector* = object
+    t*: int        # based/unit encoding from C++ parse? store raw common fields
+    start*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    endProp*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    offset*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    units*: int    # 1 percent, 2 index
+    based*: int    # 1 chars,2 charsExclSpaces,3 words,4 lines
+    shape*: int    # 1 square,2 rampUp,3 rampDown,4 triangle,5 round,6 smooth
+    smoothness*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    maxEase*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    minEase*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    maxAmount*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    random*: int
+    r*: int        # selector r
+
+  LottieTextRangeStyle* = object
+    fillColor*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    strokeColor*: LottieGenericProperty[LottieScalarFrame[LottieColor], LottieColor]
+    fillOpacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
+    strokeOpacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
+    opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
+    strokeWidth*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    letterSpace*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    lineSpace*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    position*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    scale*: LottiePoint # static for phase1? use scalar prop later; store point default
+    scaleProp*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    rotation*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    hasFillColor*, hasStrokeColor*, hasStrokeWidth*, hasPosition*, hasScale*, hasRotation*, hasOpacity*, hasFillOpacity*, hasStrokeOpacity*, hasLetterSpace*, hasLineSpace*: bool
+
+  LottieTextRange* = ref object of LottieObject
+    selector*: LottieTextRangeSelector
+    style*: LottieTextRangeStyle
+
+  LottieTextFollowPath* = ref object
+    mask*: int
+    firstMargin*: LottieGenericProperty[LottieScalarFrame[float32], float32]
+    pathLength*: float32
+    forceAlignment*: bool
+    perpendicular*: bool
+    reversePath*: bool
+
+  LottieTextObj* = ref object of LottieObject
+    doc*: LottieTextDocProp
+    font*: LottieFont
+    followPath*: LottieTextFollowPath
+    alignGroup*: int
+    alignAnchor*: LottieGenericProperty[LottieScalarFrame[LottiePoint], LottiePoint]
+    ranges*: seq[LottieTextRange]
+
   LottieMask* = ref object
     path*: LottieGenericProperty[LottieScalarFrame[LottiePath], LottiePath]
     opacity*: LottieGenericProperty[LottieScalarFrame[uint8], uint8]
@@ -257,6 +355,7 @@ type
     inPoint*, outPoint*, frameRate*: float32
     layers*: seq[LottieLayer]
     assets*: seq[LottieAsset]
+    fonts*: seq[LottieFont]
     warnings*: seq[string]
     slots*: seq[LottieSlot] # raw slot defs; applied post-parse
     slotBindings*: seq[LottieSlotBinding]
@@ -292,3 +391,25 @@ proc evalPosition*(t: LottieTransform; frameNo: float32): LottiePoint =
 proc evalScale*(t: LottieTransform; frameNo: float32): LottiePoint = t.scale.eval(frameNo)
 proc evalRotation*(t: LottieTransform; frameNo: float32): float32 = t.rotation.eval(frameNo)
 proc evalOpacity*(t: LottieTransform; frameNo: float32): uint8 = t.opacity.eval(frameNo)
+
+proc newTextDocProp*(v: LottieTextDocument = LottieTextDocument()): LottieTextDocProp =
+  LottieTextDocProp(value: v, hasFrames: false, frames: @[])
+
+proc eval*(p: LottieTextDocProp; frameNo: float32): LottieTextDocument =
+  ## Hold-only evaluation: text document keyframes do not interpolate.
+  if p == nil: return LottieTextDocument()
+  if not p.hasFrames or p.frames.len == 0:
+    return p.value
+  if frameNo <= p.frames[0].no:
+    return p.frames[0].value
+  let last = p.frames.len - 1
+  if frameNo >= p.frames[last].no:
+    return p.frames[last].value
+  var lo = 0
+  var hi = last
+  while lo <= hi:
+    let mid = (lo + hi) div 2
+    if p.frames[mid].no < frameNo: lo = mid + 1
+    else: hi = mid - 1
+  let key = max(0, hi)
+  p.frames[key].value

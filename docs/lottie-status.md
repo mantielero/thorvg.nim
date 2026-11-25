@@ -31,12 +31,17 @@
 - `audio_layer.json`: capa/asset audio fuera de alcance; se mantiene por `$bm_rt` (expresiones omitidas en Phase 1).
 - Parser usa `std/json` actualmente; `jsony@1.1.6` disponible offline pero integración pendiente (D-L4-JSON).
 
-### Gaps Phase 1/2
+### Gaps (general)
 - Per-dimension easing: `interpolatorsD` modelado y parseado cuando i.x/o.x son arrays; evaluación usa interpolador colapsado (C++ getValue) para paridad. Evaluación per-dim explícita queda pendiente solo si se confirma semántica distinta a C++.
-- Shape model: árbol básico presente; faltan tipos (rp/mm/pb/rd en paths, etc.), text/fonts/markers; masks/mattes/precomps/assets/slots/effects básicos parciales.
+- Shape model: árbol básico presente; faltan tipos (rp/mm/pb/rd en paths, etc.), markers; masks/mattes/precomps/assets/slots/effects básicos parciales. Ty5 text/font/model/parser en progreso (Phase 1 completada).
 - Shape/path: hay tipo+lerp+parser+evaluator básico; falta interpolación avanzada y render (Phase 2/3).
 - Diagnósticos: tienen ctx de layer/shape; falta ruta JSON/property completa y cobertura exhaustiva de unsupported.
 - Golden props cubren transforms; ampliar dumps para color/path/otras props cuando existan. Tolerancia pos/scale 0.5px por precisión float.
+
+## Ty5 (text layer)
+- **Phase 0 (cerrada, `b1256e7`)**: harness C++ layout dump (`tests/lottie/harness/dump_layout.cpp`, `run_layout_dump.sh`), golden JSONL determinista `tests/lottie/layout_golden/test3.jsonl`, `test8.jsonl`; matriz formal de campos y decisión de fuente en `docs/lottie-notes.md`.
+- **Phase 1 (model/parser, esta iteración)**: tipos ty5 en `src/thorvg/lottie/model/model.nim` (`LottieTextDocument`, `LottieTextDocProp` hold-eval, `LottieGlyph`, `LottieFont`, `LottieTextRange*`, `LottieTextFollowPath`, `LottieTextObj`, `LottieComposition.fonts`); parser en `src/thorvg/lottie/parser/parser.nim` para `fonts.list`, `chars`, postProcess por family+style, layer `t` (`d/p/m/a`), keyframes `t.d.k` hold-only, y warnings estructurados `unknown field` para campos fuera de matriz. Test: `tests/lottie/test_phase1_text.nim` pasa. Gate Phase 2 sin regresión: **16/19 pass, 3 fail (test3, test8, audio_layer)**.
+- **Pendiente Phase 2+**: layout/render ty5 local básico (glyph shapes embebidos, followPath, ranges, align), integración en `builder.nim`; `test3/test8` siguen bloqueados hasta completar render.
 
 ## Phase 2 - Builder sobre ThorVG Nim (MVP)
 - Estado: **en progreso**

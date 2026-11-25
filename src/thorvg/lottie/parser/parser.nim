@@ -985,6 +985,201 @@ proc parseEffects(j: JsonNode): seq[LottieEffect] =
     else:
       discard
 
+proc addUnknownWarn(warnings: var seq[string]; ctx, key: string) =
+  warnings.add(ctx & ": unknown field '" & key & "'")
+
+proc parseTextDocument(j: JsonNode): LottieTextDocument =
+  if j.kind != JObject: return
+  for k, v in j:
+    case k
+    of "s": result.size = asFloat(v, 0.0'f32)
+    of "f": result.name = v.getStr("")
+    of "t": result.text = v.getStr("")
+    of "j":
+      let ji = asInt(v, 0)
+      if ji == 1: result.justify = 1.0'f32
+      elif ji == 2: result.justify = 0.5'f32
+      else: result.justify = 0.0'f32
+    of "ca": result.caps = uint8(clamp(asInt(v, 0), 0, 2))
+    of "tr": result.tracking = asFloat(v, 0.0'f32)
+    of "lh": result.height = asFloat(v, 0.0'f32)
+    of "ls": result.shift = asFloat(v, 0.0'f32)
+    of "fc":
+      if v.kind == JArray and v.len >= 3:
+        result.color = LottieColor(r: asFloat(v[0]), g: asFloat(v[1]), b: asFloat(v[2]))
+    of "ps":
+      if v.kind == JArray and v.len >= 2:
+        result.bboxPos = lp(asFloat(v[0]), asFloat(v[1]))
+        result.bboxPositioned = true
+    of "sz":
+      if v.kind == JArray and v.len >= 2:
+        result.bboxSize = lp(asFloat(v[0]), asFloat(v[1]))
+    of "sc":
+      if v.kind == JArray and v.len >= 3:
+        result.strokeColor = LottieColor(r: asFloat(v[0]), g: asFloat(v[1]), b: asFloat(v[2]))
+    of "sw": result.strokeWidth = asFloat(v, 0.0'f32)
+    of "of": result.strokeBelow = not (asInt(v, 0) != 0)
+    else: discard # unknown doc fields counted at caller level if needed
+
+proc parseTextDocProp(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextDocProp =
+  result = newTextDocProp()
+  if j.kind != JObject:
+    return
+  for k, _ in j:
+    if k notin ["k","x","ix","sid"]:
+      addUnknownWarn(warnings, ctx & ".d", k)
+  var kj = j
+  if j.hasKey("k"): kj = j["k"]
+  if kj.kind == JArray and kj.len > 0 and kj[0].kind == JObject and kj[0].hasKey("t"):
+    result.hasFrames = true
+    for item in kj:
+      if item.kind != JObject: continue
+      for k, _ in item:
+        if k notin ["t","s","h","i","o","e","n","ix"]:
+          addUnknownWarn(warnings, ctx & ".d.k[]", k)
+      var f: LottieTextDocFrame
+      f.no = asFloat(item.getNode("t"), 0.0'f32)
+      f.hold = true
+      var sv = item.getNode("s")
+      if sv != nil and sv.kind == JObject:
+        f.value = parseTextDocument(sv)
+        for k, _ in sv:
+          if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
+            addUnknownWarn(warnings, ctx & ".d.k.s", k)
+      result.frames.add(f)
+  elif kj.kind == JArray and kj.len > 0 and kj[0].kind == JObject and kj[0].hasKey("s"):
+    let kf = kj[0]
+    for k, _ in kf:
+      if k notin ["t","s","h","i","o","e","n","ix"]:
+        addUnknownWarn(warnings, ctx & ".d.k[]", k)
+    let sv = kf["s"]
+    if sv.kind == JObject:
+      result.value = parseTextDocument(sv)
+      for k, _ in sv:
+        if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
+          addUnknownWarn(warnings, ctx & ".d.k.s", k)
+  elif kj.kind == JObject:
+    result.value = parseTextDocument(kj)
+    for k, _ in kj:
+      if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
+        addUnknownWarn(warnings, ctx & ".d.k.s", k)
+
+proc parseTextFollowPath(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextFollowPath =
+  result = LottieTextFollowPath(
+    mask: 0,
+    firstMargin: newScalarProp(0.0'f32),
+    pathLength: 0.0'f32,
+    forceAlignment: false,
+    perpendicular: false,
+    reversePath: false
+  )
+  if j.kind != JObject: return
+  for k, v in j:
+    case k
+    of "m": result.mask = asInt(v, 0)
+    of "f": result.firstMargin = parseScalarProp(v, 0.0'f32)
+    of "l": result.pathLength = asFloat(v, 0.0'f32)
+    of "a": result.forceAlignment = asInt(v, 0) != 0
+    of "r": result.perpendicular = asInt(v, 0) != 0
+    of "p": result.reversePath = asInt(v, 0) != 0
+    else: addUnknownWarn(warnings, ctx & ".p", k)
+
+proc parseTextRange(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextRange =
+  result = LottieTextRange(objType: otTextRange)
+  # defaults
+  result.selector.start = newScalarProp(0.0'f32)
+  result.selector.endProp = newScalarProp(100.0'f32)
+  result.selector.offset = newScalarProp(0.0'f32)
+  result.selector.units = 1
+  result.selector.based = 1
+  result.selector.shape = 1
+  result.selector.smoothness = newScalarProp(100.0'f32)
+  result.selector.maxEase = newScalarProp(0.0'f32)
+  result.selector.minEase = newScalarProp(0.0'f32)
+  result.selector.maxAmount = newScalarProp(0.0'f32)
+  result.selector.random = 0
+  result.selector.r = 0
+  result.style.fillColor = newColorProp(LottieColor(r:1,g:1,b:1))
+  result.style.strokeColor = newColorProp(LottieColor(r:1,g:1,b:1))
+  result.style.fillOpacity = newScalarProp(uint8(255))
+  result.style.strokeOpacity = newScalarProp(uint8(255))
+  result.style.opacity = newScalarProp(uint8(255))
+  result.style.strokeWidth = newScalarProp(0.0'f32)
+  result.style.letterSpace = newScalarProp(0.0'f32)
+  result.style.lineSpace = newScalarProp(0.0'f32)
+  result.style.position = newScalarProp(lp(0,0))
+  result.style.scaleProp = newScalarProp(lp(100,100))
+  result.style.rotation = newScalarProp(0.0'f32)
+  if j.kind != JObject: return
+  for k, v in j:
+    case k
+    of "nm", "mn", "ix", "hd": discard
+    of "s":
+      if v.kind == JObject:
+        for sk, sv in v:
+          case sk
+          of "t", "ix", "x": discard
+          of "s": result.selector.start = parseScalarProp(sv, 0.0'f32)
+          of "e": result.selector.endProp = parseScalarProp(sv, 100.0'f32)
+          of "o": result.selector.offset = parseScalarProp(sv, 0.0'f32)
+          of "u": result.selector.units = asInt(sv, 1)
+          of "b": result.selector.based = asInt(sv, 1)
+          of "sh": result.selector.shape = asInt(sv, 1)
+          of "sm": result.selector.smoothness = parseScalarProp(sv, 100.0'f32)
+          of "xe": result.selector.maxEase = parseScalarProp(sv, 0.0'f32)
+          of "ne": result.selector.minEase = parseScalarProp(sv, 0.0'f32)
+          of "a": result.selector.maxAmount = parseScalarProp(sv, 0.0'f32)
+          of "rn": result.selector.random = asInt(sv, 0)
+          of "r": result.selector.r = asInt(sv, 0)
+          else: addUnknownWarn(warnings, ctx & ".s", sk)
+    of "a":
+      if v.kind == JObject:
+        for ak, av in v:
+          case ak
+          of "a": discard # anchor? sometimes present
+          of "p": result.style.position = parseScalarPointProp(av, lp(0,0)); result.style.hasPosition = true
+          of "s": result.style.scaleProp = parseScalarPointProp(av, lp(100,100)); result.style.hasScale = true
+          of "r": result.style.rotation = parseScalarProp(av, 0.0'f32); result.style.hasRotation = true
+          of "o": result.style.opacity = parseOpacityProp(av, 100.0'f32); result.style.hasOpacity = true
+          of "fo": result.style.fillOpacity = parseOpacityProp(av, 100.0'f32); result.style.hasFillOpacity = true
+          of "so": result.style.strokeOpacity = parseOpacityProp(av, 100.0'f32); result.style.hasStrokeOpacity = true
+          of "fc": result.style.fillColor = parseColorProp(av); result.style.hasFillColor = true
+          of "sc": result.style.strokeColor = parseColorProp(av); result.style.hasStrokeColor = true
+          of "sw": result.style.strokeWidth = parseScalarProp(av, 0.0'f32); result.style.hasStrokeWidth = true
+          of "t": result.style.letterSpace = parseScalarProp(av, 0.0'f32); result.style.hasLetterSpace = true
+          of "ls": result.style.lineSpace = parseScalarProp(av, 0.0'f32); result.style.hasLineSpace = true
+          else: addUnknownWarn(warnings, ctx & ".a", ak)
+    else: addUnknownWarn(warnings, ctx, k)
+
+proc parseTextLayer(j: JsonNode; layer: LottieLayer; warnings: var seq[string]; ctx: string) =
+  if j.kind != JObject: return
+  let t = LottieTextObj(objType: otText, name: layer.name)
+  t.doc = newTextDocProp()
+  t.alignGroup = 1
+  t.alignAnchor = newScalarProp(lp(0,0))
+  t.ranges = @[]
+  for k, v in j:
+    case k
+    of "d": t.doc = parseTextDocProp(v, warnings, ctx & ".t")
+    of "p":
+      if v.kind == JObject and v.len > 0:
+        t.followPath = parseTextFollowPath(v, warnings, ctx & ".t")
+    of "m":
+      if v.kind == JObject:
+        for mk, mv in v:
+          case mk
+          of "g": t.alignGroup = asInt(mv, 1)
+          of "a": t.alignAnchor = parseScalarPointProp(mv, lp(0,0))
+          else: addUnknownWarn(warnings, ctx & ".t.m", mk)
+    of "a":
+      if v.kind == JArray:
+        for ri in 0 ..< v.len:
+          let rv = v[ri]
+          if rv.kind == JObject:
+            t.ranges.add(parseTextRange(rv, warnings, ctx & ".t.a[" & $ri & "]"))
+    else: addUnknownWarn(warnings, ctx & ".t", k)
+  layer.children.add(t)
+
 proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
   let lname = (if j.kind == JObject and j.hasKey("nm"): j["nm"].getStr("") else: "")
   let ctx = "layers[" & $idx & "]('" & lname & "')"
@@ -1059,6 +1254,8 @@ proc parseLayer(j: JsonNode; warnings: var seq[string]; idx: int): LottieLayer =
           result.masks.add(m)
   if j.hasKey("ef") and j["ef"].kind == JArray:
     result.effects = parseEffects(j["ef"])
+  if j.hasKey("t") and j["t"].kind == JObject:
+    parseTextLayer(j["t"], result, warnings, ctx)
 
 proc applySlots(comp: LottieComposition) =
   if comp.slots.len == 0 or comp.slotBindings.len == 0: return
@@ -1066,6 +1263,66 @@ proc applySlots(comp: LottieComposition) =
     for b in comp.slotBindings:
       if b.sid == s.sid and b.apply != nil:
         b.apply(s.p)
+
+proc parseGlyph(j: JsonNode; warnings: var seq[string]; ctx: string): LottieGlyph =
+  result = LottieGlyph(code: "", family: "", style: "", width: 0.0'f32, size: 0'u16, len: 0'u8, shapes: @[])
+  if j.kind != JObject: return
+  for k, v in j:
+    case k
+    of "ch": result.code = v.getStr("")
+    of "size": result.size = uint16(clamp(asInt(v, 0), 0, 65535))
+    of "style": result.style = v.getStr("")
+    of "w": result.width = asFloat(v, 0.0'f32)
+    of "fFamily": result.family = v.getStr("")
+    of "data":
+      if v.kind == JObject:
+        for dk, dv in v:
+          case dk
+          of "shapes":
+            if dv.kind == JArray:
+              result.shapes = parseShapes(dv, warnings, ctx & ".data.shapes")
+          else:
+            addUnknownWarn(warnings, ctx & ".data", dk)
+    else:
+      addUnknownWarn(warnings, ctx, k)
+  result.len = uint8(min(result.code.len, 255))
+
+proc parseFont(j: JsonNode; warnings: var seq[string]; ctx: string): LottieFont =
+  result = LottieFont(name: "", family: "", style: "", ascent: 0.0'f32, origin: 0, path: "", data: "", chars: @[])
+  if j.kind != JObject: return
+  for k, v in j:
+    case k
+    of "fName": result.name = v.getStr("")
+    of "fFamily": result.family = v.getStr("")
+    of "fStyle": result.style = v.getStr("")
+    of "ascent": result.ascent = asFloat(v, 0.0'f32)
+    of "origin": result.origin = asInt(v, 0)
+    of "fPath": result.path = v.getStr("")
+    of "fWeight", "fClass", "fOrigin": discard # common but not in our matrix; keep silent? no - count as unknown
+    else:
+      # fWeight/fClass/fOrigin appear in some files; treat as unknown structured for now only if truly unknown to matrix
+      # Matrix lists fonts.list fields: fName,fFamily,fStyle,ascent,origin,fPath,data. Others -> warning counted.
+      if k notin ["fName","fFamily","fStyle","ascent","origin","fPath","data"]:
+        addUnknownWarn(warnings, ctx, k)
+
+proc postProcessFontsGlyphs(fonts: seq[LottieFont]; glyphs: var seq[LottieGlyph]) =
+  # associate glyphs to fonts by family+style (C++ LottieParser::postProcess)
+  for gi in 0 ..< glyphs.len:
+    let g = glyphs[gi]
+    if g == nil: continue
+    var matched = false
+    for f in fonts:
+      if f.family == g.family and f.style == g.style:
+        # clear glyph family/style like C++
+        g.family = ""
+        g.style = ""
+        f.chars.add(g)
+        matched = true
+        break
+    if not matched:
+      discard # dropped like C++ delete(glyph) when no matching font
+  for f in fonts:
+    discard # chars already added
 
 proc parseComposition*(j: JsonNode): LottieComposition =
   gSlotBindings.setLen(0)
@@ -1077,6 +1334,7 @@ proc parseComposition*(j: JsonNode): LottieComposition =
     frameRate: asFloat(j.getNode("fr"), 60.0'f32),
     layers: @[],
     assets: @[],
+    fonts: @[],
     warnings: @[],
     slots: @[],
     slotBindings: @[]
@@ -1102,6 +1360,28 @@ proc parseComposition*(j: JsonNode): LottieComposition =
     for lj in j["layers"]:
       result.layers.add(parseLayer(lj, warnings, li))
       inc li
+  # parse fonts
+  if j.kind == JObject and j.hasKey("fonts") and j["fonts"].kind == JObject:
+    let fj = j["fonts"]
+    if fj.hasKey("list") and fj["list"].kind == JArray:
+      var fi = 0
+      for item in fj["list"]:
+        if item.kind == JObject:
+          result.fonts.add(parseFont(item, warnings, "fonts.list[" & $fi & "]"))
+        inc fi
+    for k, _ in fj:
+      if k != "list":
+        addUnknownWarn(warnings, "fonts", k)
+  # parse chars
+  var glyphs: seq[LottieGlyph] = @[]
+  if j.kind == JObject and j.hasKey("chars") and j["chars"].kind == JArray:
+    var ci = 0
+    for cj in j["chars"]:
+      if cj.kind == JObject:
+        glyphs.add(parseGlyph(cj, warnings, "chars[" & $ci & "]"))
+      inc ci
+  if result.fonts.len > 0 or glyphs.len > 0:
+    postProcessFontsGlyphs(result.fonts, glyphs)
   # parse slots
   if j.kind == JObject and j.hasKey("slots") and j["slots"].kind == JObject:
     for k, v in j["slots"]:
