@@ -1429,7 +1429,7 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         breakMerge()
         local.offsetPathVal = op.offset.eval(frameNo)
         local.offsetPathMiter = op.miterLimit
-        local.offsetPathJoin = if op.join == 1: StrokeJoin.Bevel elif op.join == 2: StrokeJoin.Round else: StrokeJoin.Miter
+        local.offsetPathJoin = if op.join == 1: StrokeJoin.Miter elif op.join == 2: StrokeJoin.Round else: StrokeJoin.Bevel
         local.hasOffsetPath = local.offsetPathVal != 0.0'f32
 
     elif child of LottieRepeaterObj:
