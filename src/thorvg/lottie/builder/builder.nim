@@ -1,7 +1,7 @@
 ## Lottie builder (Phase 2 MVP): lower Lottie model to ThorVG scene.
 ## No expressions, no masks/mattes/precomps/repeaters/trimpath/gradients yet.
 
-import std/[math, os]
+import std/[math, os, strformat, strutils]
 import ../../core/[types, geom, fill, path, bezier]
 import ../../renderer/[paint, shape, scene, picture]
 import ../model/[common, model, property]
@@ -48,6 +48,8 @@ type
   LottieBuilder* = ref object
     comp*: LottieComposition
     root*: Scene
+    captureLayout*: bool
+    layoutDumpLines*: seq[string]
 
 proc identityCtx(): LottieBuildCtx =
   LottieBuildCtx(
@@ -1749,7 +1751,7 @@ proc applyMasks(layerScene: Scene; layer: LottieLayer; frameNo: float32; world: 
     pOpacity = opacity
     pMethod = maskMode
 
-proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene
+proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true; b: LottieBuilder = nil): Scene
 
 proc findTextFont(comp: LottieComposition; name: string): LottieFont =
   for f in comp.fonts:
@@ -2050,7 +2052,7 @@ proc fpPosition(fp: var FollowPathState; lenSearched: float32; angle: var float3
     return p
   pt(0,0)
 
-proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; world: Matrix; op: uint8): Scene =
+proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; world: Matrix; op: uint8; b: LottieBuilder = nil): Scene =
   result = newScene()
   discard result.opacity(op)
   if layer.children.len == 0: return
@@ -2184,6 +2186,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
     var strokeW = doc.strokeWidth
     var letterSpaceAdd = 0.0'f32
     var hasRangeTransform = false
+    var dumpRangeFactor = 0.0'f32
 
     for r in text.ranges:
       if r == nil: continue
@@ -2196,6 +2199,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       let f = textRangeFactor(r, frameNo, nChars, float32(basedIdx))
       if abs(f) < 1e-6'f32: continue
       hasRangeTransform = true
+      dumpRangeFactor = f
 
       if r.style.hasScale:
         let rs = r.style.scaleProp.eval(frameNo)
@@ -2243,12 +2247,15 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
     let cb = uint8(clamp(int(fillColor.b.float32 * 255.0'f32 + 0.5'f32), 0, 255))
     let fa = if hasRangeTransform: fillOpacityU else: 255'u8
     discard shape.fill(cr, cg, cb, fa)
+    var sr: uint8 = 0; var sg: uint8 = 0; var sb: uint8 = 0; var sa: uint8 = 255
+    var dumpStrokeW = 0.0'f32
     if strokeW > 0.0'f32:
-      let sr = uint8(clamp(int(strokeColor.r.float32 * 255.0'f32 + 0.5'f32), 0, 255))
-      let sg = uint8(clamp(int(strokeColor.g.float32 * 255.0'f32 + 0.5'f32), 0, 255))
-      let sb = uint8(clamp(int(strokeColor.b.float32 * 255.0'f32 + 0.5'f32), 0, 255))
-      let sa = if hasRangeTransform: strokeOpacityU else: 255'u8
-      discard shape.strokeWidth(strokeW / textScale)
+      sr = uint8(clamp(int(strokeColor.r.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      sg = uint8(clamp(int(strokeColor.g.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      sb = uint8(clamp(int(strokeColor.b.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      sa = if hasRangeTransform: strokeOpacityU else: 255'u8
+      dumpStrokeW = strokeW / textScale
+      discard shape.strokeWidth(dumpStrokeW)
       discard shape.strokeFill(sr, sg, sb, sa)
       discard shape.strokeJoin(StrokeJoin.Round)
       if doc.strokeBelow:
@@ -2282,13 +2289,21 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       m.e23 = layoutYPx + lineY * textScale
       discard shape.transform(world * m)
 
+    if b != nil and b.captureLayout:
+      var ch = glyph.code
+      ch = ch.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r")
+      let dop = if hasRangeTransform and opacityU < 255'u8: float32(opacityU) else: 255.0'f32
+      let ds = scaling.x * capScale
+      let ln = layer.name.replace("\\", "\\\\").replace("\"", "\\\"")
+      b.layoutDumpLines.add(fmt"""{{"layer":"{ln}","frame":{frameNo:.6g},"line":{lineCount},"idx":{idxCount},"char":"{ch}","x":{cursorX:.6f},"y":{lineY:.6f},"scale":{ds:.6f},"opacity":{dop:.6f},"fill":[{cr},{cg},{cb}],"stroke":[{sr},{sg},{sb}],"strokeWidth":{dumpStrokeW:.6f},"rangeFactor":{dumpRangeFactor:.6f}}}""")
+
     discard result.add(shape)
     cursorX += adv + letterSpaceAdd
     let step = max(1, int(glyph.len))
     pos += step
     idxCount += step
 
-proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene =
+proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true; b: LottieBuilder = nil): Scene =
   if layer == nil or layer.hidden: return nil
   if addToRoot and layer.matteSrc: return nil
   if frameNo < layer.inPoint or frameNo >= layer.outPoint: return nil
@@ -2302,7 +2317,7 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     if layerScene == nil: return nil
     # Matte first (C++ updateMatte before updateMasks), then masks with wrap if needed.
     if layer.matteType != MaskMethod.None and layer.matteTarget != nil:
-      let matteScene = buildLayer(comp, layers, layer.matteTarget, frameNo, root, parentWorld, depth + 1, addToRoot = false)
+      let matteScene = buildLayer(comp, layers, layer.matteTarget, frameNo, root, parentWorld, depth + 1, addToRoot = false, b = b)
       if matteScene != nil:
         discard layerScene.mask(matteScene, layer.matteType)
       elif layer.matteType == MaskMethod.Alpha or layer.matteType == MaskMethod.Luma:
@@ -2330,7 +2345,7 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     let remapped = remapFrame(comp, layer, frameNo)
     resolveMatteTargets(asset.layers)
     for i in countdown(asset.layers.len - 1, 0):
-      discard buildLayer(comp, asset.layers, asset.layers[i], remapped, precompScene, world, depth + 1)
+      discard buildLayer(comp, asset.layers, asset.layers[i], remapped, precompScene, world, depth + 1, b = b)
     return finalizeLayerScene(precompScene)
 
   if layer.layerType == ltSolid:
@@ -2359,7 +2374,7 @@ proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lotti
     return finalizeLayerScene(layerScene)
 
   if layer.layerType == ltText:
-    let textScene = buildTextLayer(comp, layers, layer, frameNo, world, op)
+    let textScene = buildTextLayer(comp, layers, layer, frameNo, world, op, b)
     return finalizeLayerScene(textScene)
 
   if layer.layerType != ltShape: return nil
@@ -2376,6 +2391,7 @@ proc update*(b: LottieBuilder; frameNo: float32; targetW = 0.0'f32; targetH = 0.
   ## Rebuilds the root scene for the given frame. MVP: full rebuild.
   ## If targetW/H are provided, scales composition (comp.w/h) to fit target.
   b.root = newScene()
+  if b.captureLayout: b.layoutDumpLines.setLen(0)
   let tw = if targetW > 0.0'f32: targetW else: b.comp.w
   let th = if targetH > 0.0'f32: targetH else: b.comp.h
   let clip = newShape()
@@ -2383,7 +2399,7 @@ proc update*(b: LottieBuilder; frameNo: float32; targetW = 0.0'f32; targetH = 0.
   discard b.root.clip(clip)
   resolveMatteTargets(b.comp.layers)
   for i in countdown(b.comp.layers.len - 1, 0):
-    discard buildLayer(b.comp, b.comp.layers, b.comp.layers[i], frameNo, b.root)
+    discard buildLayer(b.comp, b.comp.layers, b.comp.layers[i], frameNo, b.root, b = b)
   if tw != b.comp.w or th != b.comp.h:
     let sx = tw / b.comp.w
     let sy = th / b.comp.h

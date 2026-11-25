@@ -100,6 +100,28 @@ block:
       inc unknownCount
   assertTrue(unknownCount >= 6, "unknown fields produce structured warnings")
 
+# followPath r/a/l: parsed but not applied in C++ 1.2.0 -> counted warning, not silent
+block:
+  let j = parseJson("""{"v":"5.5.2","fr":30,"ip":0,"op":10,"w":10,"h":10,"fonts":{"list":[{"fName":"F","fFamily":"F","fStyle":"R","ascent":70}]},"chars":[],"layers":[{"ty":5,"nm":"t","ip":0,"op":10,"st":0,"ks":{},"t":{"d":{"k":[{"t":0,"s":{"s":10,"f":"F","t":"A","j":0,"tr":0,"lh":12,"ls":0,"fc":[1,0,0]}}]},"p":{"m":0,"f":{"a":0,"k":0},"l":{"a":0,"k":0},"a":{"a":0,"k":1},"p":{"a":0,"k":1},"r":{"a":0,"k":1}},"m":{"g":1,"a":{"a":0,"k":[0,0]}},"a":[]}}]}""")
+  let c = parseComposition(j)
+  var gotR, gotA, gotL = false
+  for w in c.warnings:
+    if w.contains("field 'r'") and w.contains("WARNING_CONTADO"): gotR = true
+    if w.contains("field 'a'") and w.contains("WARNING_CONTADO"): gotA = true
+    if w.contains("field 'l'") and w.contains("WARNING_CONTADO"): gotL = true
+  assertTrue(gotR, "followPath r warning contado")
+  assertTrue(gotA, "followPath a warning contado")
+  assertTrue(gotL, "followPath l warning contado")
+
+# test3 also contains r/a/l in followPath; warnings must be present, not silent
+block:
+  let c = parseLottieFile(readFile("upstream/test/res/test3.lot"))
+  var gotRAL = 0
+  for w in c.warnings:
+    if w.contains("WARNING_CONTADO") and (w.contains("field 'r'") or w.contains("field 'a'") or w.contains("field 'l'")):
+      inc gotRAL
+  assertTrue(gotRAL >= 3, "test3 followPath r/a/l warnings contados")
+
 # coverage: no unknown-field warning in test3/test8 text/font/char paths
 for name in ["test3", "test8"]:
   let c = parseLottieFile(readFile("upstream/test/res/" & name & ".lot"))

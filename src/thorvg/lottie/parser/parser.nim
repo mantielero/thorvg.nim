@@ -1084,12 +1084,15 @@ proc parseTextFollowPath(j: JsonNode; warnings: var seq[string]; ctx: string): L
     of "l":
       let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
       result.pathLength = asFloat(pv, 0.0'f32)
+      warnings.add(ctx & ".p: field 'l' parsed but not applied (C++ 1.2.0 parser ignores; WARNING_CONTADO)")
     of "a":
       let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
       result.forceAlignment = asInt(pv, 0) != 0
+      warnings.add(ctx & ".p: field 'a' parsed but not applied (C++ 1.2.0 parser ignores; WARNING_CONTADO)")
     of "r":
       let pv = if v.kind == JObject and v.hasKey("k"): v["k"] else: v
       result.reversePath = asInt(pv, 0) != 0
+      warnings.add(ctx & ".p: field 'r' parsed but not applied (C++ 1.2.0 parser ignores; WARNING_CONTADO)")
     else: addUnknownWarn(warnings, ctx & ".p", k)
 
 proc parseTextRange(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextRange =
