@@ -2282,12 +2282,12 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       else:
         m.e13 = (pth.x - widthHalf) * textScale
         m.e23 = pth.y * textScale
-      discard shape.transform(world * m)
     else:
       m.e11 = gxScale; m.e22 = gyScale
       m.e13 = cursorX * textScale + lineJustifyOffsetPx(lineCount)
       m.e23 = layoutYPx + lineY * textScale
-      discard shape.transform(world * m)
+    let fm = world * m
+    discard shape.transform(fm)
 
     if b != nil and b.captureLayout:
       var ch = glyph.code
@@ -2295,7 +2295,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       let dop = if hasRangeTransform and opacityU < 255'u8: float32(opacityU) else: 255.0'f32
       let ds = scaling.x * capScale
       let ln = layer.name.replace("\\", "\\\\").replace("\"", "\\\"")
-      b.layoutDumpLines.add(fmt"""{{"layer":"{ln}","frame":{frameNo:.6g},"line":{lineCount},"idx":{idxCount},"char":"{ch}","x":{cursorX:.6f},"y":{lineY:.6f},"scale":{ds:.6f},"opacity":{dop:.6f},"fill":[{cr},{cg},{cb}],"stroke":[{sr},{sg},{sb}],"strokeWidth":{dumpStrokeW:.6f},"rangeFactor":{dumpRangeFactor:.6f}}}""")
+      b.layoutDumpLines.add(fmt"""{{"layer":"{ln}","frame":{frameNo:.6g},"line":{lineCount},"idx":{idxCount},"char":"{ch}","x":{cursorX:.6f},"y":{lineY:.6f},"scale":{ds:.6f},"opacity":{dop:.6f},"fill":[{cr},{cg},{cb}],"stroke":[{sr},{sg},{sb}],"strokeWidth":{dumpStrokeW:.6f},"rangeFactor":{dumpRangeFactor:.6f},"wm":[{fm.e11:.6f},{fm.e12:.6f},{fm.e13:.6f},{fm.e21:.6f},{fm.e22:.6f},{fm.e23:.6f}]}}""")
 
     discard result.add(shape)
     cursorX += adv + letterSpaceAdd
