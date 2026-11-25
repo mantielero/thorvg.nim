@@ -570,7 +570,8 @@ proc drawStyledPath(parentScene: Scene; path: LottiePath; ctx: LottieBuildCtx) =
 proc drawStyledRect(parentScene: Scene; pos, sz: LottiePoint; rr: float32; ctx: LottieBuildCtx) =
   let sh = newShape()
   let r = max(rr, ctx.roundCorner)
-  discard sh.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, r, r)
+  let cr = min(abs(r), min(abs(sz.x), abs(sz.y)) * 0.5'f32)
+  discard sh.appendRect(pos.x - sz.x/2.0'f32, pos.y - sz.y/2.0'f32, sz.x, sz.y, cr, cr)
   applyStyle(sh, ctx)
   discard sh.transform(ctx.transform)
   discard parentScene.add(sh)
@@ -1137,6 +1138,30 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
   var acts: seq[DrawAct] = @[]
   var acc = newShape()
   var accHas = false
+  type SavedFill = tuple[hasFill: bool, hasFillGrad: bool, fillColor: RGBA, fillGrad: Fill, fillRule: FillRule]
+  type SavedStroke = tuple[hasStroke: bool, hasStrokeGrad: bool, strokeColor: RGBA, strokeGrad: Fill,
+    strokeWidth: float32, strokeCap: StrokeCap, strokeJoin: StrokeJoin, strokeMiter: float32,
+    strokeDashes: seq[float32], strokeDashOffset: float32, hasStrokeDash: bool]
+  var extraFills: seq[SavedFill] = @[]
+  var extraStrokes: seq[SavedStroke] = @[]
+  # C++ LottieModel.cpp: reqFragment when multiple fills/strokes or non-mergeable group with painters.
+  var reqFragment = false
+  block computeReqFragment:
+    var fillCnt = 0
+    var strokeCnt = 0
+    for ch in g.children:
+      if ch == nil: continue
+      if reqFragment: break
+      if ch of LottieGroup and not LottieGroup(ch).hidden:
+        if fillCnt > 0 or strokeCnt > 0: reqFragment = true
+      elif ch of LottieFillObj or ch of LottieGradientFillObj:
+        if not ch.hidden:
+          if fillCnt > 0: reqFragment = true
+          else: inc fillCnt
+      elif ch of LottieStrokeObj or ch of LottieGradientStrokeObj:
+        if not ch.hidden:
+          if strokeCnt > 0: reqFragment = true
+          else: inc strokeCnt
 
   proc applyRepeaters(shp: Shape): seq[Shape] =
     if repeaters.len == 0:
@@ -1181,6 +1206,14 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
         return outShapes
     return propagators
 
+  proc emitStyledAcc(baseShape: Shape; styleCtx: LottieBuildCtx) =
+    let sh = Shape(baseShape.duplicate())
+    applyStyle(sh, styleCtx)
+    discard sh.transform(styleCtx.transform)
+    let expanded = applyRepeaters(sh)
+    for s in expanded:
+      acts.add(DrawAct(kind: akShape, shp: s))
+
   proc flushAcc() =
     if not accHas: return
     if local.puckerBloat != 0.0'f32:
@@ -1189,11 +1222,58 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       acc.rs.path = applyZigZag(acc.rs.path, local.zigzagAmp, local.zigzagFreq, local.zigzagPoint)
     if local.hasOffsetPath and local.offsetPathVal != 0.0'f32:
       acc.rs.path = offsetPath(acc.rs.path, local.offsetPathVal, local.offsetPathJoin, local.offsetPathMiter)
-    applyStyle(acc, local)
-    discard acc.transform(local.transform)
-    let expanded = applyRepeaters(acc)
-    for s in expanded:
-      acts.add(DrawAct(kind: akShape, shp: s))
+    # C++ reqFragment: painter-only fragments, fills before strokes in context order.
+    let hasFillP = local.hasFill or local.hasFillGrad
+    let hasStrokeP = local.hasStroke or local.hasStrokeGrad
+    # Extra fills (saved earlier fills), then current fill
+    for ef in extraFills:
+      var fc = local
+      fc.hasFill = ef.hasFill
+      fc.hasFillGrad = ef.hasFillGrad
+      fc.fillColor = ef.fillColor
+      fc.fillGrad = ef.fillGrad
+      fc.fillRule = ef.fillRule
+      fc.hasStroke = false
+      fc.hasStrokeGrad = false
+      emitStyledAcc(acc, fc)
+    if hasFillP:
+      var fc = local
+      fc.hasStroke = false
+      fc.hasStrokeGrad = false
+      if reqFragment or not hasStrokeP:
+        emitStyledAcc(acc, fc)
+      # if not reqFragment and hasStrokeP, fill will be emitted with stroke below
+    # Extra strokes, then current stroke
+    if hasStrokeP:
+      if not reqFragment and hasFillP:
+        # non-reqFragment: keep combined fill+stroke as one shape
+        emitStyledAcc(acc, local)
+      else:
+        for i in countdown(extraStrokes.high, 0):
+          let es = extraStrokes[i]
+          var sc = local
+          sc.hasFill = false
+          sc.hasFillGrad = false
+          sc.hasStroke = es.hasStroke
+          sc.hasStrokeGrad = es.hasStrokeGrad
+          sc.strokeColor = es.strokeColor
+          sc.strokeGrad = es.strokeGrad
+          sc.strokeWidth = es.strokeWidth
+          sc.strokeCap = es.strokeCap
+          sc.strokeJoin = es.strokeJoin
+          sc.strokeMiter = es.strokeMiter
+          sc.strokeDashes = es.strokeDashes
+          sc.strokeDashOffset = es.strokeDashOffset
+          sc.hasStrokeDash = es.hasStrokeDash
+          emitStyledAcc(acc, sc)
+        var sc = local
+        sc.hasFill = false
+        sc.hasFillGrad = false
+        emitStyledAcc(acc, sc)
+    elif not hasFillP:
+      emitStyledAcc(acc, local)
+    extraFills.setLen(0)
+    extraStrokes.setLen(0)
     acc = newShape()
     accHas = false
 
@@ -1219,10 +1299,13 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let f = LottieFillObj(child)
       if not f.hidden:
         breakMerge()
+        if reqFragment and (local.hasFill or local.hasFillGrad):
+          extraFills.add((local.hasFill, local.hasFillGrad, local.fillColor, local.fillGrad, local.fillRule))
         let c = f.color.eval(frameNo)
         let o = f.opacity.eval(frameNo)
         local.fillColor = toRgba(c, o)
         local.hasFill = true
+        local.hasFillGrad = false
         local.fillRule = if f.fillRule == 2: FillRule.EvenOdd else: FillRule.NonZero
         # C++: if (ctx->propagator->strokeWidth() > 0) ctx->propagator->order(true);
         if local.strokeWidth > 0.0'f32:
@@ -1232,6 +1315,10 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let st = LottieStrokeObj(child)
       if not st.hidden:
         breakMerge()
+        if reqFragment and (local.hasStroke or local.hasStrokeGrad):
+          extraStrokes.add((local.hasStroke, local.hasStrokeGrad, local.strokeColor, local.strokeGrad,
+            local.strokeWidth, local.strokeCap, local.strokeJoin, local.strokeMiter,
+            local.strokeDashes, local.strokeDashOffset, local.hasStrokeDash))
         let c = st.color.eval(frameNo)
         let o = st.opacity.eval(frameNo)
         local.strokeColor = toRgba(c, o)
@@ -1256,6 +1343,8 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let gf = LottieGradientFillObj(child)
       if not gf.hidden:
         breakMerge()
+        if reqFragment and (local.hasFill or local.hasFillGrad):
+          extraFills.add((local.hasFill, local.hasFillGrad, local.fillColor, local.fillGrad, local.fillRule))
         local.fillGrad = makeGradient(gf, frameNo)
         local.hasFillGrad = true
         local.hasFill = false
@@ -1267,6 +1356,10 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let gs = LottieGradientStrokeObj(child)
       if not gs.hidden:
         breakMerge()
+        if reqFragment and (local.hasStroke or local.hasStrokeGrad):
+          extraStrokes.add((local.hasStroke, local.hasStrokeGrad, local.strokeColor, local.strokeGrad,
+            local.strokeWidth, local.strokeCap, local.strokeJoin, local.strokeMiter,
+            local.strokeDashes, local.strokeDashOffset, local.hasStrokeDash))
         local.strokeGrad = makeStrokeGradient(gs, frameNo)
         local.hasStrokeGrad = true
         local.hasStroke = true
@@ -1387,7 +1480,7 @@ proc buildGroup(g: LottieGroup; frameNo: float32; parentScene: Scene; ctx: Lotti
       let effectiveR = if baseR == 0.0'f32 and local.roundCorner > 0.0'f32:
                          min(local.roundCorner, max(sz.x, sz.y) * 0.5'f32)
                        else:
-                         baseR
+                         min(abs(baseR), min(abs(sz.x), abs(sz.y)) * 0.5'f32)
       let useRoundPath = baseR == 0.0'f32 and local.roundCorner > 0.0'f32 and (local.hasTrim or local.hasZigzag or local.puckerBloat != 0.0'f32 or local.hasOffsetPath)
       if useRoundPath:
         let tmp = newShape()
