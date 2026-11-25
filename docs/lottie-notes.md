@@ -75,3 +75,55 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **Gradient stroke opacity/engine**: `toColorStops` escala opacity Lottie 0-100 como 0-100 (debería 0-255). Corregirlo expuso bug en Nim engine `rasterGradientStroke` (color uniforme, no gradiente) en `test10` capa 16; se mantiene TODO y escala antigua para evitar regresión. Tras el fix de lerp uint8, revalidar el caso capa 16 antes de cambiar escala.
 - **test10 bisección (2026-11-22, alpha incluida)**: k=17 AA/stroke renderer; k=13 resuelto (trim exact length); k=2 no es matte invertido, edge AA star layer 2 (idéntico con/sin matte). Candidatos restantes AA-like. RGB-only diff daba falso 0 - siempre incluir alpha.
 - **Scan Nim vs C++ (mismo build, worst frame phase2)**: hiSolid reales en `test2`(81,@45), `test5`(133,@45), `test6`(2995,@22.5), `test7`(13923,@45), `audio_layer`(16,@28.5). `test2@45` layer 12 "Inner" (2 gr): Nim dibujaba g1 sobre g0, C++ g0 sobre g1; grupos aislados 0 diff. Causa: C++ `updateChildren` itera hijos en reverso y añade scenes al procesar; orden de dibujo observado C++ = primer elemento del array arriba. Fix en `buildGroup`: emitir acciones de dibujo en orden reverso (match C++ observado). `test2` mejora fuerte (9671-9734 diff, max 111-132) vs baseline (55775/223@89); pass=3/19 sin regresiones de pass count. Cambio global de orden de dibujo: vigilar regresiones.
+
+## Phase 0 - ty5 (Text Layers) descubrimiento
+
+### Hallazgos clave
+- **Glyphs embebidos presentes**: `test3.lot` tiene `chars` (6) con `ch/size/style/w/data.shapes/fFamily`; `test8.lot` tiene `chars` (24). `fonts.list` no tiene `fPath/origin/data` embebida, pero los glyphs están en top-level `chars` y C++ los asocia a fonts por `family+style` (`postProcess`).
+- **Ruta C++ esperada para estos casos**: `updateText` usa `updateLocalFont` cuando `font.origin==Local && !font.chars.empty()`. Para test3/test8, esto aplica; no depende de fuentes del sistema.
+- **Font fallback C++ 1.2.0**: `Text::font(name)` busca fonts cargadas por nombre; `font(nullptr)` usa `anyfont()`. `updateURLFont` intenta resolver, luego `font->prepare()`, luego fallback a `anyfont()`. No hay fontconfig en upstream 1.2.0. Para casos sin chars embebidos, la disponibilidad de fuente será blocker.
+- **Goldens**: `tests/lottie/golden/test3|test8/*.rgba` generados con `dump_one` (C++ 1.2.0-dev, `/tmp/opencode/thorvg-lottie-build`), coinciden exactamente con `dump_one` actual en esta máquina.
+- **Nim actual**: `ltText` enum existe; no hay parser/builder/model ty5. `renderer/text.nim` + font loader existen, pero Lottie ty5 no está integrado.
+
+### Matriz de campos ty5 (gate)
+
+#### test3 "ThorVG" (1 capa ty5)
+- `t.d.k[0].s`: `s=200, f="Helvetica", t="ThorVG", ca=0, j=0, tr=0, lh=240.000015258789, ls=0, fc=[0.991,0.407,0.016]`
+- `t.p` (follow path): `m=0, f` animado (keyframes), `l=0, a=0, p=1, r=0`
+- `t.m`: `g=1, a=[0,0]`
+- `t.a`: `[]` (sin ranges)
+- Fonts: `Helvetica Regular`, ascent 71.8994140625
+- Chars: 6 glyphs embebidos (`data.shapes`)
+
+#### test8 "Range selector (Shape) Triangle" (ty5)
+- `t.d.k[0].s`: `s=19, f="AvertaStd-Black", t="Range\rselector\r(Shape)\rTriangle", j=2, tr=0, lh=20, ls=0, fc=[0.286,0.796,0.804]`
+- `t.a[0]` "Animator 1": `s={t=0,xe=0,ne=0,a=100,b=1,rn=0,sh=4,e animado 0->100->0, r=1}`, `a={s=[40,40,100]}`
+- `t.p`: `{}`; `t.m`: `{g:1,a:[0,0]}`
+- Necesita: range selector shape Triangle, units/range, scale override por glyph, grouping/alignment.
+
+#### test8 "text" (ty5)
+- `t.d.k[0].s`: `s=29, f="AvertaStd-Black", t="84_Text_Range selector (Shape)", j=0, tr=0, lh=34.8, ls=0, fc=[1,1,1]`
+- `t.a`: `[]`, `t.p`: `{}`, `t.m`: `{g:1,a:[0,0]}`
+- Caso texto básico con glyphs embebidos.
+
+### Matriz de cobertura requerida (plan revisado)
+- Documento `t.d.k[].s`: `f,fc,sc,sw,fs,sz,ps,t,j,tr,lh,ls,ca,of` (cubrir presentes; validar defaults C++).
+- Rangos `t.a[]`: selector `s` (`t,xe,ne,a,b,rn,sh,r,sm,s,e,o`) y props `a` (`p,s,a,r,o,fc,sc,sw,t`).
+- Opciones `t.m` (`g,a`) y follow path `t.p` (`m,f,l,r,a` + campos observados `p`).
+- Fuentes: `fonts.list` + `chars` embebidos; orígenes/path/data según aparezcan.
+- Keyframes de documento de texto: hold (sin interpolación) - añadir test.
+
+### Decisión de fuentes (Fase 0, obligatoria)
+- **Decisión**: para `test3/test8` y cualquier caso de gate con glyphs embebidos, la ruta primaria es **local glyph/char path** (equivalente a `updateLocalFont`), usando shapes de `chars` embebidos en `.lot`. No se depende de fontconfig ni de fuentes del sistema para estos casos.
+- **Fallback general ty5** (fuera de estos casos): soportar carga explícita de fuentes via ThorVG font loader (`loadFont`/datos embebidos/path) cuando el asset lo provea; si falta fuente requerida, reportar error/diagnóstico claro. No usar fallback silencioso que altere paridad.
+- **Riesgo residual**: si futuros goldens ty5 requieren fuentes externas no embebidas, se debe fijar fixture de fuentes reproducible offline antes de habilitar el caso.
+- **Estado**: decisión suficiente para pasar a Fase 1 solo para el alcance test3/test8 con chars embebidos. Cualquier caso que requiera fuente externa no resuelta debe parar y documentarse.
+
+### Harness/oráculo C++ (pendiente de completar)
+- Existe `tests/lottie/harness/dump_lottie.cpp` (props/PPM/RGBA) enlazado contra build C++ 1.2.0-dev.
+- **Pendiente**: extender o crear harness que vuelque layout intermedio ty5 por capa/frame: líneas, posición de glifo, factor de range, transform por glifo. Requiere acceso a builder interno/RenderText o instrumentación equivalente. Hasta entonces, oráculo numérico primario = golden RGBA + propiedades de modelo; layout se validará con tests dirigidos y comparación C++ cuando el harness esté instrumentado.
+
+### Siguientes pasos (Fase 1)
+- Añadir modelo Nim para TextDocument/LottieTextDoc/LottieFont/LottieGlyph/LottieTextRange/LottieTextFollowPath.
+- Parser ty5 (`t.d`, `t.a`, `t.p`, `t.m`), `fonts.list`, `chars`, postProcess font-glyph.
+- Tests de parser primero (campos/defaults/hold doc keyframes); warning estructurado/contado para campos desconocidos.
