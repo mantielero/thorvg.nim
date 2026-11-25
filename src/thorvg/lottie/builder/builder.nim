@@ -1792,6 +1792,88 @@ proc appendGlyphPath(shape: Shape; glyph: LottieGlyph; frameNo: float32) =
       let path = po.path.eval(frameNo)
       buildPath(shape, path)
 
+proc nearbyintf32(x: float32): float32 =
+  ## ties-to-even, like C++ nearbyintf
+  let f = floor(x)
+  let d = x - f
+  if d < 0.5'f32: return f
+  if d > 0.5'f32: return f + 1.0'f32
+  # tie: pick even
+  let fi = int64(f)
+  if (fi and 1'i64) == 0'i64: f else: f + 1.0'f32
+
+proc textRangeFactor(r: LottieTextRange; frameNo, totalLen, idx: float32): float32 =
+  if r == nil: return 0.0'f32
+  let offset = r.selector.offset.eval(frameNo)
+  var s = r.selector.start.eval(frameNo) + offset
+  var e = r.selector.endProp.eval(frameNo) + offset
+
+  if r.selector.random > 0:
+    let range = e - s
+    let len = if r.selector.units == 1: 100.0'f32 else: totalLen
+    let span = int(len - range)
+    if span != 0:
+      s = float32(r.selector.random mod span)
+      e = s + range
+
+  let divisor = if r.selector.units == 1: (100.0'f32 / totalLen) else: 1.0'f32
+  if divisor != 0.0'f32:
+    s = s / divisor
+    e = e / divisor
+
+  var f = 0.0'f32
+  case r.selector.shape
+  of 1: # Square
+    let smooth = r.selector.smoothness.eval(frameNo)
+    if abs(smooth) < 1e-6'f32:
+      f = if idx >= nearbyintf32(s) and idx < nearbyintf32(e): 1.0'f32 else: 0.0'f32
+    else:
+      if idx >= floor(s):
+        let diff = idx - s
+        f = if diff < 0.0'f32: min(e, 1.0'f32) + diff else: e - idx
+      let sm = smooth * 0.01'f32
+      if sm != 0.0'f32:
+        f = (f - (1.0'f32 - sm) * 0.5'f32) / sm
+  of 2: # RampUp
+    f = if abs(s - e) < 1e-6'f32: (if idx >= e: 1.0'f32 else: 0.0'f32)
+        else: (0.5'f32 + idx - s) / (e - s)
+  of 3: # RampDown
+    f = if abs(s - e) < 1e-6'f32: (if idx >= e: 0.0'f32 else: 1.0'f32)
+        else: 1.0'f32 - (0.5'f32 + idx - s) / (e - s)
+  of 4: # Triangle
+    f = if abs(s - e) < 1e-6'f32: 0.0'f32 else: 2.0'f32 * (0.5'f32 + idx - s) / (e - s)
+    f = if f < 1.0'f32: f else: 2.0'f32 - f
+  of 5: # Round
+    let idx2 = clamp(idx + (0.5'f32 - s), 0.0'f32, e - s)
+    let range = 0.5'f32 * (e - s)
+    let t = idx2 - range
+    f = if abs(s - e) < 1e-6'f32: 0.0'f32
+        else: sqrt(max(0.0'f32, 1.0'f32 - t * t / (range * range)))
+  of 6: # Smooth
+    let idx2 = clamp(idx + (0.5'f32 - s), 0.0'f32, e - s)
+    f = if abs(s - e) < 1e-6'f32: 0.0'f32
+        else: 0.5'f32 * (1.0'f32 + cos(PI * (1.0'f32 + 2.0'f32 * idx2 / (e - s))))
+  else:
+    f = 0.0'f32
+
+  f = clamp(f, 0.0'f32, 1.0'f32)
+
+  let minEase = clamp(r.selector.minEase.eval(frameNo), -100.0'f32, 100.0'f32)
+  let maxEase = clamp(r.selector.maxEase.eval(frameNo), -100.0'f32, 100.0'f32)
+  if abs(minEase) > 1e-6'f32 or abs(maxEase) > 1e-6'f32:
+    var inPt = lp(1.0'f32, 1.0'f32)
+    var outPt = lp(0.0'f32, 0.0'f32)
+    if maxEase > 0.0'f32: inPt.x = 1.0'f32 - maxEase * 0.01'f32
+    else: inPt.y = 1.0'f32 + maxEase * 0.01'f32
+    if minEase > 0.0'f32: outPt.x = minEase * 0.01'f32
+    else: outPt.y = -minEase * 0.01'f32
+    var interp = newLottieInterpolator()
+    interp.set("", inPt, outPt)
+    f = interp.progress(f)
+
+  f = clamp(f, 0.0'f32, 1.0'f32)
+  f * r.selector.maxAmount.eval(frameNo) * 0.01'f32
+
 type
   FollowPathState = object
     cmds: seq[PathCommand]
@@ -1988,8 +2070,9 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
   let textScale = doc.size / 100.0'f32
   if textScale <= 0.0'f32: return
-  var cursorX = 0.0'f32
   let baseY = -font.ascent + doc.shift / textScale
+  let nChars = float32(doc.text.len)
+
   # follow path
   var fp: FollowPathState
   var hasFollow = false
@@ -1999,63 +2082,152 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
     hasFollow = true
     perpendicular = text.followPath.perpendicular
     firstMargin = fpPrepare(fp, layer, frameNo, textScale)
+
   var pos = 0
+  var idxCount = 0
+  var spaceCount = 0
+  var lineCount = 0
+  var cursorX = 0.0'f32
+  var lineY = 0.0'f32
+  var totalLineSpace = 0.0'f32
+  var lineSpace = 0.0'f32
+
   while pos < doc.text.len:
     let c = doc.text[pos]
     if c == '\r' or c == '\n' or ord(c) == 3:
+      # newline: C++-like line advance
+      lineY = (float32(lineCount + 1) * doc.height + totalLineSpace) / textScale
+      inc lineCount
+      totalLineSpace += lineSpace
+      lineSpace = 0.0'f32
+      cursorX = 0.0'f32
       inc pos
       continue
+
     var capScale = 1.0'f32
     let glyph = searchGlyph(font, doc.text, pos, doc.caps, capScale)
     if glyph == nil:
       inc pos
+      inc idxCount
       continue
+
     let adv = (glyph.width + doc.tracking) * capScale
+    if c == ' ':
+      inc spaceCount
+
+    # Range styles
+    var scaling = pt(1.0'f32, 1.0'f32)
+    var fillColor = doc.color
+    var strokeColor = doc.strokeColor
+    var opacityU: uint8 = 255
+    var fillOpacityU: uint8 = 255
+    var strokeOpacityU: uint8 = 255
+    var strokeW = doc.strokeWidth
+    var letterSpaceAdd = 0.0'f32
+    var hasRangeTransform = false
+
+    for r in text.ranges:
+      if r == nil: continue
+      var basedIdx = idxCount
+      case r.selector.based
+      of 2: basedIdx = idxCount - spaceCount # CharsExcludingSpaces
+      of 3: basedIdx = lineCount + spaceCount # Words
+      of 4: basedIdx = lineCount # Lines
+      else: discard # Chars
+      let f = textRangeFactor(r, frameNo, nChars, float32(basedIdx))
+      if abs(f) < 1e-6'f32: continue
+      hasRangeTransform = true
+
+      if r.style.hasScale:
+        let rs = r.style.scaleProp.eval(frameNo)
+        scaling.x = scaling.x * (f * (rs.x * 0.01'f32 - 1.0'f32) + 1.0'f32)
+        scaling.y = scaling.y * (f * (rs.y * 0.01'f32 - 1.0'f32) + 1.0'f32)
+
+      if r.style.hasOpacity:
+        let ro = r.style.opacity.eval(frameNo)
+        opacityU = uint8(clamp(float32(opacityU) - f * (float32(opacityU) - float32(ro)), 0.0'f32, 255.0'f32))
+
+      if r.style.hasFillColor or r.style.hasFillOpacity:
+        if r.style.hasFillColor:
+          let rc = r.style.fillColor.eval(frameNo)
+          fillColor.r = clamp(fillColor.r + f * (rc.r - fillColor.r), 0.0'f32, 1.0'f32)
+          fillColor.g = clamp(fillColor.g + f * (rc.g - fillColor.g), 0.0'f32, 1.0'f32)
+          fillColor.b = clamp(fillColor.b + f * (rc.b - fillColor.b), 0.0'f32, 1.0'f32)
+        if r.style.hasFillOpacity:
+          let ro = r.style.fillOpacity.eval(frameNo)
+          fillOpacityU = uint8(clamp(float32(fillOpacityU) - f * (float32(fillOpacityU) - float32(ro)), 0.0'f32, 255.0'f32))
+
+      if r.style.hasStrokeColor or r.style.hasStrokeOpacity or r.style.hasStrokeWidth:
+        if r.style.hasStrokeColor:
+          let rc = r.style.strokeColor.eval(frameNo)
+          strokeColor.r = clamp(strokeColor.r + f * (rc.r - strokeColor.r), 0.0'f32, 1.0'f32)
+          strokeColor.g = clamp(strokeColor.g + f * (rc.g - strokeColor.g), 0.0'f32, 1.0'f32)
+          strokeColor.b = clamp(strokeColor.b + f * (rc.b - strokeColor.b), 0.0'f32, 1.0'f32)
+        if r.style.hasStrokeOpacity:
+          let ro = r.style.strokeOpacity.eval(frameNo)
+          strokeOpacityU = uint8(clamp(float32(strokeOpacityU) - f * (float32(strokeOpacityU) - float32(ro)), 0.0'f32, 255.0'f32))
+        if r.style.hasStrokeWidth:
+          strokeW = f * r.style.strokeWidth.eval(frameNo)
+
+      if r.style.hasLetterSpace:
+        letterSpaceAdd += f * r.style.letterSpace.eval(frameNo)
+      if r.style.hasLineSpace:
+        let ls = f * r.style.lineSpace.eval(frameNo)
+        if ls > lineSpace: lineSpace = ls
+
     let shape = newShape()
     discard shape.reset()
     appendGlyphPath(shape, glyph, frameNo)
-    let cr = uint8(clamp(int(doc.color.r * 255.0'f32 + 0.5'f32), 0, 255))
-    let cg = uint8(clamp(int(doc.color.g * 255.0'f32 + 0.5'f32), 0, 255))
-    let cb = uint8(clamp(int(doc.color.b * 255.0'f32 + 0.5'f32), 0, 255))
-    discard shape.fill(cr, cg, cb, 255'u8)
-    if doc.strokeWidth > 0.0'f32:
-      let sr = uint8(clamp(int(doc.strokeColor.r * 255.0'f32 + 0.5'f32), 0, 255))
-      let sg = uint8(clamp(int(doc.strokeColor.g * 255.0'f32 + 0.5'f32), 0, 255))
-      let sb = uint8(clamp(int(doc.strokeColor.b * 255.0'f32 + 0.5'f32), 0, 255))
-      discard shape.strokeWidth(doc.strokeWidth / textScale)
-      discard shape.strokeFill(sr, sg, sb, 255'u8)
+
+    let cr = uint8(clamp(int(fillColor.r.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+    let cg = uint8(clamp(int(fillColor.g.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+    let cb = uint8(clamp(int(fillColor.b.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+    let fa = if hasRangeTransform: fillOpacityU else: 255'u8
+    discard shape.fill(cr, cg, cb, fa)
+    if strokeW > 0.0'f32:
+      let sr = uint8(clamp(int(strokeColor.r.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      let sg = uint8(clamp(int(strokeColor.g.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      let sb = uint8(clamp(int(strokeColor.b.float32 * 255.0'f32 + 0.5'f32), 0, 255))
+      let sa = if hasRangeTransform: strokeOpacityU else: 255'u8
+      discard shape.strokeWidth(strokeW / textScale)
+      discard shape.strokeFill(sr, sg, sb, sa)
       discard shape.strokeJoin(StrokeJoin.Round)
       if doc.strokeBelow:
         discard shape.order(false)
       else:
         discard shape.order(true)
+    if hasRangeTransform and opacityU < 255'u8:
+      discard shape.opacity(opacityU)
+
+    let gxScale = scaling.x * textScale * capScale
+    let gyScale = scaling.y * textScale * capScale
     var m = identity()
     if hasFollow:
       var angle = 0.0'f32
       let widthHalf = glyph.width * 0.5'f32
       let pth = fpPosition(fp, cursorX + widthHalf + firstMargin, angle)
-      let sc2 = textScale * capScale
-      m.e11 = sc2; m.e22 = sc2
+      m.e11 = gxScale; m.e22 = gyScale
       if perpendicular:
         let ca = cos(angle); let sa = sin(angle)
-        m.e11 = sc2 * ca; m.e12 = -sc2 * sa
-        m.e21 = sc2 * sa; m.e22 = sc2 * ca
+        m.e11 = gxScale * ca; m.e12 = -gyScale * sa
+        m.e21 = gxScale * sa; m.e22 = gyScale * ca
         m.e13 = pth.x * textScale - widthHalf * m.e11
         m.e23 = pth.y * textScale - widthHalf * m.e21
       else:
         m.e13 = (pth.x - widthHalf) * textScale
         m.e23 = pth.y * textScale
-      let finalM = world * m
-      discard shape.transform(finalM)
+      discard shape.transform(world * m)
     else:
-      translate(m, pt(cursorX, baseY))
-      scale(m, pt(textScale * capScale, textScale * capScale))
-      let finalM = world * m
-      discard shape.transform(finalM)
+      m.e11 = gxScale; m.e22 = gyScale
+      m.e13 = cursorX * textScale
+      m.e23 = (baseY + lineY) * textScale
+      discard shape.transform(world * m)
+
     discard result.add(shape)
-    cursorX += adv
+    cursorX += adv + letterSpaceAdd
     let step = max(1, int(glyph.len))
     pos += step
+    idxCount += step
 
 proc buildLayer*(comp: LottieComposition; layers: seq[LottieLayer]; layer: LottieLayer; frameNo: float32; root: Scene; parentWorld: Matrix = identity(); depth: int = 0; addToRoot: bool = true): Scene =
   if layer == nil or layer.hidden: return nil
