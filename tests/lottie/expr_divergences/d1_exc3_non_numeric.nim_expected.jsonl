@@ -1,0 +1,4 @@
+{"case":"sc_arr_str_first","nimExpected":{"k":"num","v":0},"cpp_observed_ub":3.783505853677006e-44,"rule":"elem no-numérico->0"}
+{"case":"sc_arr_nested","nimExpected":{"k":"num","v":0},"cpp_observed_ub":2.9975222501721363e-37,"rule":"elem anidado/no-numérico->0"}
+{"case":"vc_arr_nonnum","nimExpected":{"k":"vec","v":[1,0]},"cpp_observed_ub":[1,3.783505853677006e-44],"rule":"elem no-numérico->0"}
+{"case":"vc_arr_bool","nimExpected":{"k":"vec","v":[0,0]},"cpp_observed_ub":[0,2.2040519140888197e-39],"rule":"bool->0; ruta vec2 difiere de escalar"}

@@ -1,7 +1,15 @@
 # known_divergences.txt - divergencias declaradas AOT vs ThorVG C++ 1.2.0 (D1)
 # Formato: case|prop|frames|cpp_observed_golden|nim_expected_golden|reason
 # Nim debe coincidir con nim_expected (no con C++) para estos casos.
+
 # D1-exc1: fuga $bm_rt entre props/capas/frames (estado global JS) no replicada en AOT.
 #          Expr sin $bm_rt definitivo => None/static + warning contado.
-
 leak_r_to_o|ks.o|0,1,2|tests/lottie/expr_1b_golden/leak_r_to_o.jsonl|tests/lottie/expr_divergences/leak_r_to_o.nim_expected.jsonl|D1-exc1: expr muerta en o hereda $bm_rt de r en C++ (127); Nim cae a estático o=100%=>255
+
+# D1-exc2: opacidad fuera de rango - C++ float->uint8 UB/wrap dependiente de plataforma. Nim: clamp.
+#          Regla: NaN->0, v<=0->0, v>=255->255, else trunc(float32(v)*2.55f32). +Inf puede saturar 255 en ARM.
+opacity_oob_class|ks.o|n/a|tests/lottie/expr_boundary_golden/|tests/lottie/expr_divergences/d1_exc2_opacity_oob.nim_expected.jsonl|D1-exc2: clamp opacidad fuera de rango; C++ UB/wrap observado en 7 casos
+
+# D1-exc3: elementos no numéricos/anidados en arrays - C++ reinterpreta bits/UB. Nim: número->self(NaN preservado), else 0.
+#          Valores C++ basura observados estables en este build pero no semánticos; no replicar.
+non_numeric_array_elems|r/p|n/a|tests/lottie/expr_boundary_golden/|tests/lottie/expr_divergences/d1_exc3_non_numeric.nim_expected.jsonl|D1-exc3: elem no-numérico/anidado->0; C++ basura/UB-like
