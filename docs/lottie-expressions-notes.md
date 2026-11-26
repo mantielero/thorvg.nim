@@ -141,6 +141,41 @@ Casos: `tests/lottie/harness/gen_expr_1b_cases.py` -> `tests/lottie/expr_1b_case
 ### Cambio Nim (parser)
 - Warning contado cuando expr no contiene `$bm_rt`: "expression but never assigns $bm_rt; ignored as in ThorVG 1.2.0" (heurística; análisis definitivo en compilador). Elimina silencio semántico en casos tipo test5.
 
+## Phase 1c - Casos con estáticos distintivos / reglas confirmadas
+
+Artefactos: `tests/lottie/harness/gen_expr_1c_cases.py`, `tests/lottie/expr_1c_cases/`, `tests/lottie/expr_1c_golden/`. Harness `dump_expr.cpp` soporta `--reuse` (misma Animation, frames secuenciales/seek).
+
+### Tipos/errores con estático distintivo (r=33.3, p=[7,9])
+| Caso | Resultado | Clasificación |
+|---|---|---|
+| `undefined` | 33.3 | fallback estático |
+| string `"hello"` | 0 | coerción/regla ThorVG (no fallback) |
+| bool `true` | 0 | coerción/regla ThorVG (no fallback, no JS true==1) |
+| bool `false` | 0 | coerción/regla ThorVG |
+| `NaN` | nan | propagado |
+| ident indefinido | 33.3 | excepción -> disabled -> fallback estático |
+| `throw` | 33.3 | excepción -> disabled -> fallback estático |
+| scalar en vector pos | [0,0] | mismatch tipo, no fallback |
+
+### Array en escalar (regla ThorVG, no JS Number)
+| Expr | Resultado |
+|---|---:|
+| `[3]` | 3 |
+| `[1,2]` | 1 |
+| `[1,2,3]` | 1 |
+| `[]` | 0 |
+
+Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
+
+### Opacidad barrido
+`opacity_sweep`: 0..100 paso 0.1 (1001 valores), expr `time*10`, fr=10. **1001/1001** coinciden con `uint8(float32(v)*2.55f32)`. Tolerancia opacidad: exacta.
+
+### Fuga $bm_rt (reutilización misma Animation)
+`leak_frame_to_frame` con `--reuse`: forward 0,0.5,1,2 => 99,99,99,99; seek 0,1,2,1,0 => 99,99,99,99. Confirma fuga persistente en contexto de animación. No replicar (D1-exc1). Goldens: `expr_1c_golden/leak_frame_to_frame_reuse.jsonl`, `leak_frame_to_frame_seek.jsonl`.
+
+### Divergencias declaradas
+`tests/lottie/expr_divergences/known_divergences.txt` creado (vacío, formato+D1-exc1). 
+
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
 - `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones sin `$bm_rt` (muertas por diseño en ThorVG 1.2.0) - Nim emite warning contado.

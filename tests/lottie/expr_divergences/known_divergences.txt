@@ -1,0 +1,5 @@
+# known_divergences.txt - divergencias declaradas AOT vs ThorVG C++ 1.2.0 (D1)
+# Formato: <case>|<prop>|<frames>|<cpp_observed>|<nim_expected>|<reason>
+# Nim debe coincidir con nim_expected (no con C++) para estos casos.
+# D1-exc1: fuga $bm_rt entre props/capas/frames (estado global JS) no replicada en AOT.
+#          Expr sin $bm_rt definitivo => None/static + warning contado.
