@@ -2,7 +2,7 @@
 
 Nim port of [ThorVG](https://github.com/thorvg/thorvg) (v1.2.0 C++ reference), targeting modular, idiomatic, safe Nim 2.x.
 
-> Status: active migration. See [`docs/STATUS.md`](docs/STATUS.md) for the canonical, detailed project status.
+> Status: active migration. See [`migration/STATUS.md`](migration/STATUS.md) for the canonical, detailed project status.
 
 ## Overview
 
@@ -33,7 +33,7 @@ Key principles:
 ### Requirements
 
 - Nim >= 2.0.0 (Nim 2.x; verify with `nim -v`).
-- For C++ parity/golden workflows, use the platform-specific toolchain/scripts documented in `tests/parity/README.md`, `tests/gl/README.md`, and `docs/STATUS.md`.
+- For C++ parity/golden workflows, use the platform-specific toolchain/scripts documented in `tests/parity/README.md`, `tests/gl/README.md`, and `migration/STATUS.md`.
 
 ### Compile checks
 
@@ -82,7 +82,7 @@ nim c -r --path:src --path:tools tools/exprc/gen_audio_pack.nim -- --check
 ```
 
 See:
-- [`docs/STATUS.md`](docs/STATUS.md) — canonical status and gates
+- [`migration/STATUS.md`](migration/STATUS.md) — canonical status and gates
 - [`docs/lottie-notes.md`](docs/lottie-notes.md) — implementation notes
 - [`docs/lottie-expressions-notes.md`](docs/lottie-expressions-notes.md) — expression/AOT decisions and findings
 - [`docs/AGENTS-expressions-aot.md`](docs/AGENTS-expressions-aot.md) — AOT plan/constraints
