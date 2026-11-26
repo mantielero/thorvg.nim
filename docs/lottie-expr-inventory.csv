@@ -1,0 +1,6 @@
+file,propPath,hash64,len,idents,functions,constructs,source
+"upstream/test/res/audio_layer.json","layers[0].ks.r.x","9148657208088506155",186,"$bm_rt|Math|amplitude|decay|div|exp|mul|sin|time|veloc","div|exp|mul|sin","var","var $bm_rt;\nvar $bm_rt;\nvar veloc, amplitude, decay;\nveloc = 15;\namplitude = 65;\ndecay = 4;\n$bm_rt = $bm_rt = div(mul(amplitude, Math.sin(mul(veloc, time))), Math.exp(mul(decay, time)));"
+"upstream/test/res/test5.lot","layers[5].ks.p.x","15621554058979168306",70,"Math|cos|sin|t|time","cos|sin","var","var t = time; [150 + Math.sin(t * 2) * 50, 150 + Math.cos(t * 2) * 50]"
+"upstream/test/res/test5.lot","layers[6].ks.r.x","4198929252739853645",10,"time","","","time * 100"
+"upstream/test/res/test5.lot","layers[7].ks.s.x","15189977720052498217",45,"Math|s|sin|time","sin","var","var s = 100 + Math.sin(time * 3) * 50; [s, s]"
+"upstream/test/res/test5.lot","layers[8].ks.o.x","12220890655578457460",131,"Math|cycle|maxOpacity|minOpacity|sin|time","sin","var","var minOpacity = 30; var maxOpacity = 100; var cycle = Math.sin(time * 2); minOpacity + (maxOpacity - minOpacity) * (cycle + 1) / 2"

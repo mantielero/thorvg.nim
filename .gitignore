@@ -51,3 +51,8 @@ tests/**/out/
 
 # Upstream reference source (kept local, not tracked here)
 /upstream/
+
+# Lottie test binaries / build artifacts (keep .nim sources)
+tests/lottie/test_*
+!tests/lottie/test_*.nim
+tests/lottie/harness/compare
