@@ -1001,7 +1001,7 @@ proc parseTextDocument(j: JsonNode): LottieTextDocument =
       elif ji == 2: result.justify = 0.5'f32
       else: result.justify = 0.0'f32
     of "ca": result.caps = uint8(clamp(asInt(v, 0), 0, 2))
-    of "tr": result.tracking = asFloat(v, 0.0'f32)
+    of "tr": result.tracking = asFloat(v, 0.0'f32) * 0.1'f32 # C++ 1.2.0: *0.1f
     of "lh": result.height = asFloat(v, 0.0'f32)
     of "ls": result.shift = asFloat(v, 0.0'f32)
     of "fc":

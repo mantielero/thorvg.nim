@@ -17,9 +17,3 @@ range_offset_animated     # selector aplicado via p (confundido; range_*_opacity
 range_triangle_edge       # selector aplicado via p (confundido; range_*_opacity PASS)
 single_position           # range-pr: p del range animator sin aplicar
 single_rotation           # range-pr: r del range animator sin aplicar
-track_neg_boxwide         # tracking sin wrap (caja ancha)
-track_neg_nowrap          # tracking sin wrap ni caja
-track_pos_boxwide         # tracking sin wrap (caja ancha)
-track_pos_nowrap          # tracking sin wrap ni caja
-wrap_neg_tracking         # tracking+wrap
-wrap_pos_tracking         # tracking+wrap (conteo glifos difiere)
