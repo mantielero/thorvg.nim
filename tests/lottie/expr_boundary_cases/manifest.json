@@ -1,0 +1,310 @@
+{
+  "cases": [
+    {
+      "name": "sc_num_neg",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_null",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_str_numeric",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_arr_nan_first",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_arr_str_first",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_arr_bool_first",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_arr_undef_first",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "sc_arr_nested",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "scalar"
+    },
+    {
+      "name": "vc_undef",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_1",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_3",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_empty",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_nonnum",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_bool",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_arr_nan",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_str",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_bool",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "vc_null",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "vec2"
+    },
+    {
+      "name": "op_undef",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_str",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_bool_true",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_arr_1",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_neg10",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_100_1",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_150",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_1000",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_nan",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_inf",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "op_ninf",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.o",
+      "section": "opacity"
+    },
+    {
+      "name": "pg_last_wins",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "program"
+    },
+    {
+      "name": "pg_ternary_definite",
+      "frames": [
+        5.0,
+        20.0
+      ],
+      "prop": "ks.r",
+      "section": "program"
+    },
+    {
+      "name": "pg_if_no_else",
+      "frames": [
+        5.0,
+        20.0
+      ],
+      "prop": "ks.r",
+      "section": "program"
+    },
+    {
+      "name": "pg_var_local",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "program"
+    },
+    {
+      "name": "pg_bm_div",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.r",
+      "section": "program"
+    },
+    {
+      "name": "pg_bm_mul_vec",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "program"
+    },
+    {
+      "name": "pg_bm_sum_vec",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "program"
+    },
+    {
+      "name": "pg_bm_sum_broadcast",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "program"
+    },
+    {
+      "name": "pg_bm_sum_len_mismatch",
+      "frames": [
+        0.0
+      ],
+      "prop": "ks.p",
+      "section": "program"
+    }
+  ]
+}

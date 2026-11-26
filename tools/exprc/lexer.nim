@@ -12,7 +12,7 @@ type
     tkPlusEq, tkMinusEq, tkStarEq, tkSlashEq,
     tkKwVar, tkKwLet, tkKwConst, tkKwIf, tkKwElse, tkKwReturn,
     tkKwTrue, tkKwFalse, tkKwNull, tkKwUndefined, tkKwFunction,
-    tkKwThis, tkKwNew, tkForbidden
+    tkKwThis, tkKwNew, tkKwThrow, tkForbidden
 
   Token* = object
     kind*: TokKind
@@ -76,6 +76,7 @@ proc readIdent(l: var Lexer): Token =
   of "function": addTok(tkKwFunction, s, line, col)
   of "this": addTok(tkKwThis, s, line, col)
   of "new": addTok(tkKwNew, s, line, col)
+  of "throw": addTok(tkKwThrow, s, line, col)
   else: addTok(tkIdent, s, line, col)
 
 proc readNum(l: var Lexer): Token =

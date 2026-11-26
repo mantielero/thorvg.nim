@@ -3,7 +3,7 @@
 ## call, array, ternary, comma/seq, var/let/const decl, if/else, block, return.
 ## Rejected (diagnostic): function decl/expr, with, eval, new, regex literal (not lexed), dynamic global access patterns.
 import std/[strutils, tables]
-import ast, lexer
+import ast, lexer, analysis
 
 type
   ParseDiag* = object
@@ -252,6 +252,14 @@ proc parseStmt(p: var Parser): Expr =
       v = p.parseExpr(0)
     if p.at(tkSemi): discard p.advance()
     return Expr(kind: ekReturn, ret: v, span: span(t))
+  if p.at(tkKwThrow):
+    let t = p.advance()
+    p.diag("unsupported_throw: semántica con estado de ThorVG (exp.disabled); no soportado hasta que el corpus lo pida", t)
+    # consume expression best-effort
+    if not p.at(tkSemi) and not p.at(tkRBrace) and not p.atEnd():
+      discard p.parseExpr(0)
+    if p.at(tkSemi): discard p.advance()
+    return newSeq(@[], span(t), ekBlock)
   if p.at(tkKwFunction):
     discard p.parsePrimary() # will diag
     return newSeq(@[], sp(p.cur.line,p.cur.col), ekBlock)
@@ -292,6 +300,66 @@ proc parseProgram*(src: string): ParseResult =
     of ekReturn: walk(e.ret, p)
     else: discard
   walk(prog, p)
+  # read $bm_rt before definitive assignment
+  for rd in readBeforeAssignBmRt(prog):
+    p.diags.add(ParseDiag(line: rd.line, col: rd.col, msg: rd.msg))
+  # unknown undeclared identifiers (Strict-relevant; IgnoreCounted equivalent to ThorVG fallback)
+  let allowed = ["time","$bm_rt","$bm_div","$bm_mul","$bm_sum","$bm_sub","$bm_mod",
+                 "div","mul","sum","sub","add","mod","Math","NaN","Infinity","undefined",
+                 "true","false","null","this"]
+  proc collectDecls(e: Expr; decls: var seq[string]) =
+    if e == nil: return
+    case e.kind
+    of ekVarDecl:
+      decls.add e.vname
+      collectDecls(e.vinit, decls)
+    of ekSeq, ekBlock, ekProgram:
+      for s in e.stmts: collectDecls(s, decls)
+    of ekIf:
+      collectDecls(e.ifCond, decls); collectDecls(e.ifThen, decls); collectDecls(e.ifElse, decls)
+    of ekAssign: collectDecls(e.lhs, decls); collectDecls(e.brhs, decls)
+    of ekBinary: collectDecls(e.lhs, decls); collectDecls(e.brhs, decls)
+    of ekUnary: collectDecls(e.rhs, decls)
+    of ekCall:
+      collectDecls(e.callee, decls)
+      for a in e.args: collectDecls(a, decls)
+    of ekMember: collectDecls(e.mobj, decls)
+    of ekIndex: collectDecls(e.iobj, decls); collectDecls(e.iidx, decls)
+    of ekArray:
+      for it in e.items: collectDecls(it, decls)
+    of ekCond: collectDecls(e.cnd, decls); collectDecls(e.cthen, decls); collectDecls(e.cels, decls)
+    of ekReturn: collectDecls(e.ret, decls)
+    else: discard
+  var decls: seq[string] = @[]
+  collectDecls(prog, decls)
+  proc checkIdents(e: Expr; decls: seq[string]; p: var Parser) =
+    if e == nil: return
+    case e.kind
+    of ekIdent:
+      if e.strVal notin allowed and e.strVal notin decls:
+        p.diag("unknown_identifier: '" & e.strVal & "' no declarado (ThorVG cae a estático; equivalente funcional: IgnoreCounted)", Token(line:e.span.line,col:e.span.col,kind:tkIdent))
+    of ekVarDecl: checkIdents(e.vinit, decls, p)
+    of ekSeq, ekBlock, ekProgram:
+      for s in e.stmts: checkIdents(s, decls, p)
+    of ekIf: checkIdents(e.ifCond, decls, p); checkIdents(e.ifThen, decls, p); checkIdents(e.ifElse, decls, p)
+    of ekAssign: checkIdents(e.lhs, decls, p); checkIdents(e.brhs, decls, p)
+    of ekBinary:
+      # JS array operator check (literal arrays)
+      if e.bop in ["+","-","*","/","%"] and (e.lhs.kind == ekArray or e.brhs.kind == ekArray):
+        p.diag("array_operator: operador JS sobre array; usa $bm_sum/$bm_sub/$bm_mul/$bm_div", Token(line:e.span.line,col:e.span.col,kind:tkIdent))
+      checkIdents(e.lhs, decls, p); checkIdents(e.brhs, decls, p)
+    of ekUnary: checkIdents(e.rhs, decls, p)
+    of ekCall:
+      checkIdents(e.callee, decls, p)
+      for a in e.args: checkIdents(a, decls, p)
+    of ekMember: checkIdents(e.mobj, decls, p)
+    of ekIndex: checkIdents(e.iobj, decls, p); checkIdents(e.iidx, decls, p)
+    of ekArray:
+      for it in e.items: checkIdents(it, decls, p)
+    of ekCond: checkIdents(e.cnd, decls, p); checkIdents(e.cthen, decls, p); checkIdents(e.cels, decls, p)
+    of ekReturn: checkIdents(e.ret, decls, p)
+    else: discard
+  checkIdents(prog, decls, p)
   result.ok = p.diags.len == 0
   result.expr = prog
   result.diags = p.diags

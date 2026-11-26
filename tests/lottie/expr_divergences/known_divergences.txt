@@ -1,5 +1,7 @@
 # known_divergences.txt - divergencias declaradas AOT vs ThorVG C++ 1.2.0 (D1)
-# Formato: <case>|<prop>|<frames>|<cpp_observed>|<nim_expected>|<reason>
+# Formato: case|prop|frames|cpp_observed_golden|nim_expected_golden|reason
 # Nim debe coincidir con nim_expected (no con C++) para estos casos.
 # D1-exc1: fuga $bm_rt entre props/capas/frames (estado global JS) no replicada en AOT.
 #          Expr sin $bm_rt definitivo => None/static + warning contado.
+
+leak_r_to_o|ks.o|0,1,2|tests/lottie/expr_1b_golden/leak_r_to_o.jsonl|tests/lottie/expr_divergences/leak_r_to_o.nim_expected.jsonl|D1-exc1: expr muerta en o hereda $bm_rt de r en C++ (127); Nim cae a estático o=100%=>255

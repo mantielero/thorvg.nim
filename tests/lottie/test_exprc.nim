@@ -108,16 +108,30 @@ $bm_rt = $bm_rt = div(mul(amplitude, Math.sin(mul(veloc, time))), Math.exp(mul(d
   discard reg2.lookup("999", "ctx")
   checkEq("registry ignore counted", reg2.ignored, 1)
 
+  # --- read_before_assign ---
+  let rb1 = parseProgram("$bm_rt = $bm_rt + 1;")
+  check("read_before_assign diag", hasDiag(rb1, "read_before_assign"))
+  let rb2 = parseProgram("$bm_rt += 1;")
+  check("compound read_before_assign", hasDiag(rb2, "read_before_assign"))
+
+  # --- array operator ---
+  let ao1 = parseProgram("$bm_rt = [1,2] + [3,4];")
+  check("array + rejected", hasDiag(ao1, "array_operator"))
+  let ao2 = parseProgram("$bm_rt = [1,2] * 2;")
+  check("array * rejected", hasDiag(ao2, "array_operator"))
+
+  # --- unknown identifier (Strict) ---
+  let ui = parseProgram("$bm_rt = undef_var + 1;")
+  check("unknown_identifier diag", hasDiag(ui, "unknown_identifier"))
+
   # --- observed 1c/1b cases parse ---
   for src in ["var $bm_rt = true;", "var $bm_rt = false;", "var $bm_rt = undefined;",
               "var $bm_rt = \"hello\";", "var $bm_rt = NaN;", "var $bm_rt = [1,2];",
-              "var $bm_rt = 42;", "throw \"boom\";"]:
+              "var $bm_rt = 42;"]:
     let rr = parseProgram(src)
-    # throw is not in our subset - should diag or parse as ident; be tolerant but record
-    if src.startsWith("throw"):
-      check("throw handled (diag or parsed)", true) # just don't crash
-    else:
-      check("1c case parses: " & src[0..min(20, src.high)], rr.ok)
+    check("1c case parses: " & src[0..min(20, src.high)], rr.ok)
+  let thr = parseProgram("throw \"boom\";")
+  check("throw rejected diag", hasDiag(thr, "unsupported_throw"))
 
   echo fmt"pass={passes} fail={failures}"
   if failures > 0: quit(1)

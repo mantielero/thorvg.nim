@@ -1,0 +1,1333 @@
+{
+  "_comment": [
+    "Tabla de casos de la frontera de propiedad de expresiones (ThorVG 1.2.0 con lottie_exp).",
+    "status=observed: el resultado esperado viene de un oraculo ya volcado (1b/1c) o del nucleo.",
+    "status=pending-oracle: expected=null hasta volcarlo con dump_expr. NUNCA se rellena a mano ni por analogia.",
+    "status=diagnostic: lo comprueba exprc (diagnostico), no el oraculo de C++.",
+    "jsExpr es el cuerpo que debe generar el caso sintetico (gen_expr_*_cases.py) para el oraculo.",
+    "Los estaticos (33.3, [7,9], 77) son distintivos a proposito: un resultado igual al estatico significa fallback.",
+    "input/expected usan specs: undef|null|nan|inf|ninf|bool|num|str|arr; expected anade static|vec|u8|compile_diag|num_by_time."
+  ],
+  "scalar": [
+    {
+      "id": "sc_num",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = 42;",
+      "input": {
+        "k": "num",
+        "v": 42
+      },
+      "expected": {
+        "k": "num",
+        "v": 42
+      },
+      "status": "observed",
+      "source": "core",
+      "note": ""
+    },
+    {
+      "id": "sc_num_neg",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = -5;",
+      "input": {
+        "k": "num",
+        "v": -5
+      },
+      "expected": {
+        "k": "num",
+        "v": -5
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    },
+    {
+      "id": "sc_nan",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = NaN;",
+      "input": {
+        "k": "nan"
+      },
+      "expected": {
+        "k": "nan"
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": ""
+    },
+    {
+      "id": "sc_inf",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = Infinity;",
+      "input": {
+        "k": "inf"
+      },
+      "expected": {
+        "k": "inf"
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": ""
+    },
+    {
+      "id": "sc_ninf",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = -Infinity;",
+      "input": {
+        "k": "ninf"
+      },
+      "expected": {
+        "k": "ninf"
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": ""
+    },
+    {
+      "id": "sc_undef",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = undefined;",
+      "input": {
+        "k": "undef"
+      },
+      "expected": {
+        "k": "static"
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": "cae al estatico"
+    },
+    {
+      "id": "sc_str",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = \"hello\";",
+      "input": {
+        "k": "str",
+        "v": "hello"
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": "regla ThorVG, no fallback"
+    },
+    {
+      "id": "sc_bool_true",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = true;",
+      "input": {
+        "k": "bool",
+        "v": true
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": "no es 1"
+    },
+    {
+      "id": "sc_bool_false",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = false;",
+      "input": {
+        "k": "bool",
+        "v": false
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": ""
+    },
+    {
+      "id": "sc_null",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = null;",
+      "input": {
+        "k": "null"
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "null->0, no estatico"
+    },
+    {
+      "id": "sc_str_numeric",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = \"5\";",
+      "input": {
+        "k": "str",
+        "v": "5"
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "JS coerciona a 5; ThorVG puede dar 0; no JS coercion a 5; regla ThorVG"
+    },
+    {
+      "id": "sc_arr_1",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [3];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 3
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 3
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": "primer elemento"
+    },
+    {
+      "id": "sc_arr_2",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [1,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 1
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": ""
+    },
+    {
+      "id": "sc_arr_3",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [1,2,3];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          },
+          {
+            "k": "num",
+            "v": 2
+          },
+          {
+            "k": "num",
+            "v": 3
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 1
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": ""
+    },
+    {
+      "id": "sc_arr_empty",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [];",
+      "input": {
+        "k": "arr",
+        "v": []
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": ""
+    },
+    {
+      "id": "sc_arr_nan_first",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [NaN,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "nan"
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "nan"
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "primer elemento NaN"
+    },
+    {
+      "id": "sc_arr_str_first",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [\"a\",2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "str",
+            "v": "a"
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 3.783505853677006e-44
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "OBSERVADO C++ pero valor basura/UB-like; NO replicar como semántica"
+    },
+    {
+      "id": "sc_arr_bool_first",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [true,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "bool",
+            "v": true
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "bool primer elemento->0"
+    },
+    {
+      "id": "sc_arr_undef_first",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [undefined,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "undef"
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "undefined como primer elemento da 0 (distinto de undefined escalar->static)"
+    },
+    {
+      "id": "sc_arr_nested",
+      "section": "scalar",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [[1,2],3];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "arr",
+            "v": [
+              {
+                "k": "num",
+                "v": 1
+              },
+              {
+                "k": "num",
+                "v": 2
+              }
+            ]
+          },
+          {
+            "k": "num",
+            "v": 3
+          }
+        ]
+      },
+      "expected": {
+        "k": "num",
+        "v": 2.9975222501721363e-37
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "OBSERVADO C++ pero valor basura/UB-like; NO replicar como semántica"
+    }
+  ],
+  "vec2": [
+    {
+      "id": "vc_arr_2",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [1,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          1,
+          2
+        ]
+      },
+      "status": "observed",
+      "source": "core",
+      "note": ""
+    },
+    {
+      "id": "vc_scalar",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = 42;",
+      "input": {
+        "k": "num",
+        "v": 42
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "1c",
+      "note": "no cae al estatico"
+    },
+    {
+      "id": "vc_undef",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = undefined;",
+      "input": {
+        "k": "undef"
+      },
+      "expected": {
+        "k": "static"
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "se espera estatico"
+    },
+    {
+      "id": "vc_arr_1",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [1];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          1,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "padding con 0"
+    },
+    {
+      "id": "vc_arr_3",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [1,2,3];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          },
+          {
+            "k": "num",
+            "v": 2
+          },
+          {
+            "k": "num",
+            "v": 3
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          1,
+          2
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "vec2 con 3 elementos; trunca a dim 2"
+    },
+    {
+      "id": "vc_arr_empty",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [];",
+      "input": {
+        "k": "arr",
+        "v": []
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    },
+    {
+      "id": "vc_arr_nonnum",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [1,\"a\"];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 1
+          },
+          {
+            "k": "str",
+            "v": "a"
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          1,
+          3.783505853677006e-44
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "segundo elemento basura/UB-like; NO replicar"
+    },
+    {
+      "id": "vc_arr_bool",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [true,false];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "bool",
+            "v": true
+          },
+          {
+            "k": "bool",
+            "v": false
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          2.2040519140888198e-39
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "bool[0]->0, bool[1] basura/UB-like; NO replicar"
+    },
+    {
+      "id": "vc_arr_nan",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = [NaN,2];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "nan"
+          },
+          {
+            "k": "num",
+            "v": 2
+          }
+        ]
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          "nan",
+          2
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "NaN propaga en componente"
+    },
+    {
+      "id": "vc_str",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = \"hello\";",
+      "input": {
+        "k": "str",
+        "v": "hello"
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "tipo no-vector -> [0,0] como escalar"
+    },
+    {
+      "id": "vc_bool",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = true;",
+      "input": {
+        "k": "bool",
+        "v": true
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    },
+    {
+      "id": "vc_null",
+      "section": "vec2",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = null;",
+      "input": {
+        "k": "null"
+      },
+      "expected": {
+        "k": "vec",
+        "v": [
+          0,
+          0
+        ]
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    }
+  ],
+  "opacity": [
+    {
+      "id": "op_0",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 0;",
+      "input": {
+        "k": "num",
+        "v": 0
+      },
+      "expected": {
+        "k": "u8",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_0_4",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 0.4;",
+      "input": {
+        "k": "num",
+        "v": 0.4
+      },
+      "expected": {
+        "k": "u8",
+        "v": 1
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_49_99",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 49.99;",
+      "input": {
+        "k": "num",
+        "v": 49.99
+      },
+      "expected": {
+        "k": "u8",
+        "v": 127
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_50",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 50;",
+      "input": {
+        "k": "num",
+        "v": 50
+      },
+      "expected": {
+        "k": "u8",
+        "v": 127
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_99_9",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 99.9;",
+      "input": {
+        "k": "num",
+        "v": 99.9
+      },
+      "expected": {
+        "k": "u8",
+        "v": 254
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_100",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 100;",
+      "input": {
+        "k": "num",
+        "v": 100
+      },
+      "expected": {
+        "k": "u8",
+        "v": 255
+      },
+      "status": "observed",
+      "source": "1b",
+      "note": "uint8(float32(v)*2.55f32)"
+    },
+    {
+      "id": "op_undef",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = undefined;",
+      "input": {
+        "k": "undef"
+      },
+      "expected": {
+        "k": "static"
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "77%*2.55=196"
+    },
+    {
+      "id": "op_str",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = \"hello\";",
+      "input": {
+        "k": "str",
+        "v": "hello"
+      },
+      "expected": {
+        "k": "u8",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    },
+    {
+      "id": "op_bool_true",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = true;",
+      "input": {
+        "k": "bool",
+        "v": true
+      },
+      "expected": {
+        "k": "u8",
+        "v": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": ""
+    },
+    {
+      "id": "op_arr_1",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = [50];",
+      "input": {
+        "k": "arr",
+        "v": [
+          {
+            "k": "num",
+            "v": 50
+          }
+        ]
+      },
+      "expected": {
+        "k": "u8",
+        "v": 127
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "primer elemento esperado; primer elemento 50->127"
+    },
+    {
+      "id": "op_neg10",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = -10;",
+      "input": {
+        "k": "num",
+        "v": -10
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 0,
+        "cpp_observed_ub": 231
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 231 wrap); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_100_1",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 100.1;",
+      "input": {
+        "k": "num",
+        "v": 100.1
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 255,
+        "cpp_observed_ub": 255
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 255); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_150",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 150;",
+      "input": {
+        "k": "num",
+        "v": 150
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 255,
+        "cpp_observed_ub": 126
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 126 wrap); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_1000",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = 1000;",
+      "input": {
+        "k": "num",
+        "v": 1000
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 255,
+        "cpp_observed_ub": 246
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 246 wrap); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_nan",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = NaN;",
+      "input": {
+        "k": "nan"
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 0,
+        "cpp_observed_ub": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 0); DECISIÓN: clamp+divergencia declarada; no dejar sin probar"
+    },
+    {
+      "id": "op_inf",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = Infinity;",
+      "input": {
+        "k": "inf"
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 0,
+        "cpp_observed_ub": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 0); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_ninf",
+      "section": "opacity",
+      "prop": "o",
+      "static": 77,
+      "jsExpr": "$bm_rt = -Infinity;",
+      "input": {
+        "k": "ninf"
+      },
+      "expected": {
+        "k": "u8_clamp",
+        "v": 0,
+        "cpp_observed_ub": 0
+      },
+      "status": "observed",
+      "source": "new",
+      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 0); DECISIÓN: clamp+divergencia declarada"
+    },
+    {
+      "id": "op_sweep",
+      "section": "opacity",
+      "kind": "sweep",
+      "prop": "o",
+      "static": 77,
+      "from": 0.0,
+      "to": 100.0,
+      "step": 0.1,
+      "count": 1001,
+      "formula": "uint8(float32(v) * 2.55'f32)",
+      "golden": "tests/lottie/expr_1c_golden/opacity_sweep.jsonl",
+      "expected": "exacta en los 1001 valores",
+      "status": "observed",
+      "source": "1c"
+    }
+  ],
+  "program": [
+    {
+      "id": "pg_last_wins",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = 1; $bm_rt = 2;",
+      "expected": {
+        "k": "num",
+        "v": 2
+      },
+      "status": "observed",
+      "note": "semantica JS esperada"
+    },
+    {
+      "id": "pg_ternary_definite",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = time > 1 ? 5 : 6;",
+      "expected": {
+        "k": "num_by_time",
+        "t_le_1": 6,
+        "t_gt_1": 5
+      },
+      "status": "observed",
+      "note": "verificado t=0.5->6, t=2.0->5"
+    },
+    {
+      "id": "pg_if_no_else",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "if (time > 1) $bm_rt = 5;",
+      "expected": {
+        "k": "num_by_time",
+        "t_le_1": "static",
+        "t_gt_1": 5
+      },
+      "status": "observed",
+      "note": "asignacion no definitiva: Option; warning contado; verificado t=0.5->static(33.3), t=2.0->5; asignación no definitiva"
+    },
+    {
+      "id": "pg_var_local",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "var a = 2; $bm_rt = a * 3;",
+      "expected": {
+        "k": "num",
+        "v": 6
+      },
+      "status": "observed",
+      "note": ""
+    },
+    {
+      "id": "pg_read_before_assign",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = $bm_rt + 1;",
+      "expected": {
+        "k": "compile_diag",
+        "code": "read_before_assign"
+      },
+      "status": "diagnostic",
+      "note": "lee el global filtrado; no replicable"
+    },
+    {
+      "id": "pg_compound_read",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt += 1;",
+      "expected": {
+        "k": "compile_diag",
+        "code": "read_before_assign"
+      },
+      "status": "diagnostic",
+      "note": ""
+    },
+    {
+      "id": "pg_throw",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "throw \"boom\";",
+      "expected": {
+        "k": "compile_diag",
+        "code": "unsupported_throw"
+      },
+      "status": "diagnostic",
+      "note": "ThorVG deshabilita la expresion (estado); no soportado"
+    },
+    {
+      "id": "pg_array_plus",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [1,2] + [3,4];",
+      "expected": {
+        "k": "compile_diag",
+        "code": "array_operator"
+      },
+      "status": "diagnostic",
+      "note": "en JS es cadena; usar $bm_*"
+    },
+    {
+      "id": "pg_array_times",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = [1,2] * 2;",
+      "expected": {
+        "k": "compile_diag",
+        "code": "array_operator"
+      },
+      "status": "diagnostic",
+      "note": "en JS es NaN; usar $bm_*"
+    },
+    {
+      "id": "pg_unknown_ident",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = undef_var + 1;",
+      "expected": {
+        "k": "compile_diag",
+        "code": "unknown_identifier"
+      },
+      "status": "diagnostic",
+      "note": "ThorVG cae al estatico; equivalente funcional: IgnoreCounted"
+    },
+    {
+      "id": "pg_bm_div",
+      "section": "program",
+      "prop": "r",
+      "static": 33.3,
+      "jsExpr": "$bm_rt = $bm_div(10, 4);",
+      "expected": {
+        "k": "num",
+        "v": 2.5
+      },
+      "status": "observed",
+      "note": ""
+    },
+    {
+      "id": "pg_bm_mul_vec",
+      "section": "program",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = $bm_mul([1,2], 3);",
+      "expected": {
+        "k": "vec",
+        "v": [
+          3,
+          6
+        ]
+      },
+      "status": "observed",
+      "note": "portar de ThorVG"
+    },
+    {
+      "id": "pg_bm_sum_vec",
+      "section": "program",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = $bm_sum([1,2], [3,4]);",
+      "expected": {
+        "k": "vec",
+        "v": [
+          4,
+          6
+        ]
+      },
+      "status": "observed",
+      "note": ""
+    },
+    {
+      "id": "pg_bm_sum_broadcast",
+      "section": "program",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = $bm_sum([1,2], 5);",
+      "expected": {
+        "k": "vec",
+        "v": [
+          6,
+          2
+        ]
+      },
+      "status": "observed",
+      "note": "escalar sobre vector; escalar broadcast: [1,2]+5=[6,2] (no [6,7])"
+    },
+    {
+      "id": "pg_bm_sum_len_mismatch",
+      "section": "program",
+      "prop": "p",
+      "static": [
+        7,
+        9
+      ],
+      "jsExpr": "$bm_rt = $bm_sum([1,2], [1]);",
+      "expected": {
+        "k": "vec",
+        "v": [
+          2,
+          2
+        ]
+      },
+      "status": "observed",
+      "note": "longitudes distintas; longitudes distintas: [1,2]+[1]=[2,2] (reusa ultimo?)"
+    }
+  ]
+}

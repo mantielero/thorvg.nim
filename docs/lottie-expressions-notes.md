@@ -179,9 +179,17 @@ Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
 ## Paso 2 - exprc pipeline mínimo (sin integración runtime)
 - `tools/exprc/`: lexer, parser Pratt, AST, análisis conservador de asignación definitiva `$bm_rt`, emisor Nim (skeleton/runtime API Paso 3), registro hash (D2 Strict/IgnoreCounted).
 - Subconjunto observado: literales, ident, unarios/binarios, asignación/compuesta, member/index/call, array, ternario, coma/seq, var/let/const, if/else, block, return. `div/mul/sum/sub/mod` mapeados a helpers bm*.
-- Negativos diagnosticados (línea/col): `eval`, `Function`, `with`, `new`, regex literal, `this`/`globalThis`/`window`/`self`/`frames`.
+- Negativos diagnosticados (línea/col): `eval`, `Function`, `with`, `new`, regex literal, `this`/`globalThis`/`window`/`self`/`frames`, `throw` (`unsupported_throw`), lectura `$bm_rt` antes de asignación definitiva (`read_before_assign`), operador JS sobre array literal (`array_operator`, usar `$bm_*`), identificador no declarado (`unknown_identifier`; Strict=error, equivalente funcional ThorVG=IgnoreCounted).
 - Heurística parser `$bm_rt` en fuente sigue temporal; retirar cuando integración use análisis definitivo.
-- Tests: `tests/lottie/test_exprc.nim` (41 pass). Gates: phase2_builder 19/19, text_compose 44/44.
+- Tests: `tests/lottie/test_exprc.nim` (46 pass). Gates: phase2_builder 19/19, text_compose 44/44.
+
+## Paso 1d - Frontera de propiedad / oracle (expr_boundary_cases)
+- Tabla fuente: `tests/lottie/expr_boundary_cases.json` (65 casos; observed/pending-oracle/diagnostic). Generador: `tests/lottie/harness/gen_expr_boundary_cases.py`. Goldens: `tests/lottie/expr_boundary_golden/`.
+- **Scalar**: `null`->0; `"5"`->0 (no JS coercion); `[NaN,2]`->NaN; `[true,2]`->0; `[undefined,2]`->0 (distinto de undefined escalar->static); `["a",2]` y `[[1,2],3]` dan valores basura/UB-like observados en C++ (**no replicar como semántica**; decidir clamp/fallback/divergencia).
+- **Vec2**: `undefined`->static; `[1]`->[1,0]; `[1,2,3]`->[1,2]; `[]`->[0,0]; `NaN` en componente propaga; `string/bool/null` escalar en vec2->[0,0]. Elementos no-numéricos en array producen basura/UB-like observado en C++ (**no replicar**).
+- **Opacity**: `undefined`->static (196 para 77%); `string/bool`->0; `[50]`->127. Fuera de rango/UB C++ observados: `-10`->231 wrap, `100.1`->255, `150`->126 wrap, `1000`->246 wrap, `NaN/±Inf`->0. **Decisión propuesta: clamp+divergencia declarada** (no replicar UB; no dejar sin probar). Requiere confirmación antes de codificar frontera.
+- **Program/$bm_***: `last_wins`=2; ternario definitivo por tiempo ok; `if` sin else no definitivo => static antes de t>1, 5 después; `var local` ok; `$bm_div(10,4)=2.5`; `$bm_mul([1,2],3)=[3,6]`; `$bm_sum([1,2],[3,4])=[4,6]`; `$bm_sum([1,2],5)=[6,2]` (broadcast escalar); `$bm_sum([1,2],[1])=[2,2]` (mismatch longitudes).
+- **D1-exc1**: entrada real en `tests/lottie/expr_divergences/known_divergences.txt` + `leak_r_to_o.nim_expected.jsonl` (muerta cae a estático 255; C++ observado 127 por fuga).
 
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
