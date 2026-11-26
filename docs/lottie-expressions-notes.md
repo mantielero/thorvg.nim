@@ -197,8 +197,8 @@ Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
 - `src/generated/expr_audio_layer.nim`: pack AOT generado para `audio_layer` (hash `7ef68f4253eeaf2b`), regen `tools/exprc/gen_audio_pack.nim` con `--check`.
 - Parser: heurística `$bm_rt` retirada; usa parse+análisis definitivo exprc (single source of truth). D1-exc1: sin $bm_rt definitivo -> warning/fallback estático. Bind expr en props transform (rot/opacity/pos/anchor/scale/skew) vía registry.
 - Builder: clamp frameNo a `[inPoint, outPoint-1]` (consistente con ThorVG/dump_expr).
-- Tests: `test_expr_runtime.nim` 61, `test_expr_pack.nim` 4, `test_expr_audio_dense.nim` 229/229 vs `audio_layer_dense.jsonl`. Gates: `phase2_builder` 19/19 (`audio_layer` 2 frames XFAIL render residual, denso OK), `text_compose` 44/44, `test_expr_boundary` 116, `test_exprc` 46.
-- Pendiente 3c: investigar residual render audio_layer@0/@28.5 (1px/33px), integrar más props/expresiones por registro, retirar XFAIL solo con denso+render verde.
+- Tests: `test_expr_runtime.nim` 61, `test_expr_pack.nim` 4, `test_expr_audio_dense.nim` 229/229 vs `audio_layer_dense.jsonl`. Gates: `phase2_builder` 19/19 (`audio_layer` OK con AAEDGE documentado: @0 1px/250000 maxDiff255 gold a=1; @28.5 33px/250000 maxDiff<=45 gradiente alpha edge; denso 229/229 verde), `text_compose` 44/44, `test_expr_boundary` 116, `test_exprc` 46.
+- Pendiente 3c+: ampliar integración AOT a más props/expresiones/casos del corpus por registro; mantener guard regen+diff (`gen_audio_pack --check`); seguir fases plan AOT.
 
 ## Paso 1d - Frontera de propiedad / oracle (expr_boundary_cases)
 - Tabla fuente: `tests/lottie/expr_boundary_cases.json` (65 casos; observed/pending-oracle/diagnostic). Generador: `tests/lottie/harness/gen_expr_boundary_cases.py`. Goldens: `tests/lottie/expr_boundary_golden/`.

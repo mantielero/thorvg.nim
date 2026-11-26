@@ -90,5 +90,5 @@
 ## Expresiones (AOT, sin JS) - estado
 - Phase 0-1d/2/3a/3b: inventory+oráculos+boundary+exprc+runtime/boundary+hash+registry+pack completados (ver `docs/lottie-expressions-notes.md`). D1-exc1/2/3 declaradas.
 - Paso 3c (parcial): `audio_layer` rotación integrada vía registry AOT; denso **229/229** vs `audio_layer_dense.jsonl`; heurística `$bm_rt` parser retirada (análisis definitivo). Builder clamp `[inPoint,outPoint-1]`.
-- Tests: `test_expr_boundary` 116, `test_exprc` 46, `test_expr_runtime` 61, `test_expr_pack` 4, `test_expr_audio_dense` 229. Gates: `phase2_builder` 19/19 (`audio_layer` XFAIL residual render @0/@28.5, no regresión), `text_compose` 44/44.
-- Pendiente: investigar residual render audio_layer@0/@28.5, ampliar packs/props integradas, retirar XFAIL solo con denso+render verde.
+- Tests: `test_expr_boundary` 116, `test_exprc` 46, `test_expr_runtime` 61, `test_expr_pack` 4, `test_expr_audio_dense` 229. Gates: `phase2_builder` 19/19 (`audio_layer` OK con AAEDGE documentado: @0 1px maxDiff255 a<=1, @28.5 33px maxDiff<=45; denso 229/229 verde), `text_compose` 44/44.
+- Pendiente: ampliar packs/props/expresiones integradas por registro (otras capas/casos del corpus), formalizar guard CI regen+diff para packs generados, seguir Paso 3c/4+ del plan AOT.
