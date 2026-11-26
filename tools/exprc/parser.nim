@@ -85,7 +85,7 @@ proc parsePrimary(p: var Parser): Expr =
     var items: seq[Expr] = @[]
     if not p.at(tkRBracket):
       while true:
-        items.add p.parseExpr(0)
+        items.add p.parseExpr(2)
         if p.at(tkComma): discard p.advance() else: break
     discard p.expect(tkRBracket, "expected ']'")
     return newArray(items, span(t))
@@ -115,7 +115,7 @@ proc parsePostfix(p: var Parser): Expr =
         break
     elif p.at(tkLBracket):
       let bt = p.advance()
-      let idx = p.parseExpr(0)
+      let idx = p.parseExpr(2)
       discard p.expect(tkRBracket, "expected ']'")
       # dynamic property access via computed string? treat as index
       result = newIndex(result, idx, span(bt))
@@ -124,7 +124,7 @@ proc parsePostfix(p: var Parser): Expr =
       var args: seq[Expr] = @[]
       if not p.at(tkRParen):
         while true:
-          args.add p.parseExpr(0)
+          args.add p.parseExpr(2)
           if p.at(tkComma): discard p.advance() else: break
       discard p.expect(tkRParen, "expected ')'")
       # check forbidden calls
@@ -203,7 +203,7 @@ proc parseVarDecl(p: var Parser): Expr =
   var init: Expr = nil
   if p.at(tkEq):
     discard p.advance()
-    init = p.parseExpr(0)
+    init = p.parseExpr(2)
   # handle `var a=1, b=2;` as seq in caller by returning single; caller loops
   return newVarDecl(nameTok.text, init, span(t))
 
@@ -238,7 +238,7 @@ proc parseStmt(p: var Parser): Expr =
       if not p.at(tkIdent): p.diag("expected identifier"); break
       discard p.advance()
       var init: Expr = nil
-      if p.at(tkEq): discard p.advance(); init = p.parseExpr(0)
+      if p.at(tkEq): discard p.advance(); init = p.parseExpr(2)
       decls.add newVarDecl(nt.text, init, span(nt))
     if p.at(tkSemi): discard p.advance()
     if decls.len == 1: return decls[0]

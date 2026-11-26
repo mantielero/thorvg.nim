@@ -189,6 +189,14 @@ Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
 - `tests/lottie/test_expr_boundary.nim`: tabla desde `expr_boundary_cases.json`; `observed`+`ub` validados (nimExpected/expected), sweep 1001 exacto, falla si queda `pending-oracle`. **116 pass, 0 fail, 0 pending**.
 - Corrección: `op_inf` nimExpected clamp -> 255 (p=+Inf>=255); C++ x86 observado 0 UB, ARM puede saturar 255.
 
+## Paso 3b - Emitter/runtime + hash + pack audio_layer (parcial)
+- `src/thorvg/lottie/expr/runtime.nim`: ExprCtx/Val helpers; $bm_sum/sub/mul/div/mod alineados con ThorVG (`_addsub/_muldiv/_mod`, escalar index 0; 2d+1d aplica a x; mismatch copia resto). `asNum*` sigue ThorVG scalar _number. Runtime puro, sin estado global.
+- `tools/exprc/emitter.nim`: `Option[Val]` + `bmAssigned`; asignaciones a `$bm_rt` marcan flag. Fix parser coma-args (parseExpr(2) en args/arrays/índices) y emitter seq/indent/time=evNum(ctx.time).
+- `src/thorvg/lottie/expr/hash.nim`: hash FNV-1a 64 compartido, normaliza CRLF/CR. Usar esta función desde exprc/cargador.
+- `src/generated/expr_audio_layer.nim`: pack AOT generado para `audio_layer` (hash `7ef68f4253eeaf2b`), regen `tools/exprc/gen_audio_pack.nim` con `--check`.
+- Tests: `test_expr_runtime.nim` 61 pass (oracle $bm_*), `test_expr_pack.nim` 4 pass (hash/eval t0/regen-check). Gates: `phase2_builder` 19/19, `text_compose` 44/44, `test_expr_boundary` 116, `test_exprc` 46.
+- Pendiente 3b: integrar pack en registry/cargador y CI regen+diff formal; 3c: hook captura Nim vs `audio_layer_dense.jsonl`, integrar rotación, retirar heurística $bm_rt parser, retirar XFAIL solo con denso+render verde.
+
 ## Paso 1d - Frontera de propiedad / oracle (expr_boundary_cases)
 - Tabla fuente: `tests/lottie/expr_boundary_cases.json` (65 casos; observed/pending-oracle/diagnostic). Generador: `tests/lottie/harness/gen_expr_boundary_cases.py`. Goldens: `tests/lottie/expr_boundary_golden/`.
 - **Scalar**: `null`->0; `"5"`->0 (no JS coercion); `[NaN,2]`->NaN; `[true,2]`->0; `[undefined,2]`->0 (distinto de undefined escalar->static); `["a",2]` y `[[1,2],3]` dan valores basura/UB-like observados en C++ (**no replicar como semántica**; decidir clamp/fallback/divergencia).

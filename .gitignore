@@ -56,3 +56,7 @@ tests/**/out/
 tests/lottie/test_*
 !tests/lottie/test_*.nim
 tests/lottie/harness/compare
+
+# Exprc tool binaries
+tools/exprc/gen_audio_pack
+!tools/exprc/gen_audio_pack.nim

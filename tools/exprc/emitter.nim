@@ -22,7 +22,8 @@ proc emitIdent(name: string): string =
   of "$bm_sum", "sum", "add": "bmSum"
   of "$bm_sub", "sub": "bmSub"
   of "$bm_mod", "mod": "bmMod"
-  of "time": "ctx.time"
+  of "time": "evNum(ctx.time)"
+  of "frame": "evNum(ctx.frame)"
   of "undefined": "evUndef()"
   of "NaN": "evNum(NaN)"
   of "Infinity": "evNum(Inf)"
@@ -83,12 +84,13 @@ proc emitExpr(e: Expr; indent: int = 0): EmitResult =
     let r = emitExpr(e.brhs, indent); if not r.ok: return r
     if e.lhs.kind == ekIdent:
       let name = emitIdent(e.lhs.strVal)
+      let assignFlag = if e.lhs.strVal == "$bm_rt": " bmAssigned = true;" else: ""
       case e.bop
-      of "=": return EmitResult(ok: true, code: fmt"(block: {name} = {r.code}; {name})")
-      of "+=": return EmitResult(ok: true, code: fmt"(block: {name} = evAdd({name}, {r.code}); {name})")
-      of "-=": return EmitResult(ok: true, code: fmt"(block: {name} = evSub({name}, {r.code}); {name})")
-      of "*=": return EmitResult(ok: true, code: fmt"(block: {name} = evMul({name}, {r.code}); {name})")
-      of "/=": return EmitResult(ok: true, code: fmt"(block: {name} = evDiv({name}, {r.code}); {name})")
+      of "=": return EmitResult(ok: true, code: "(block:" & assignFlag & " " & name & " = " & r.code & "; " & name & ")")
+      of "+=": return EmitResult(ok: true, code: "(block:" & assignFlag & " " & name & " = evAdd(" & name & ", " & r.code & "); " & name & ")")
+      of "-=": return EmitResult(ok: true, code: "(block:" & assignFlag & " " & name & " = evSub(" & name & ", " & r.code & "); " & name & ")")
+      of "*=": return EmitResult(ok: true, code: "(block:" & assignFlag & " " & name & " = evMul(" & name & ", " & r.code & "); " & name & ")")
+      of "/=": return EmitResult(ok: true, code: "(block:" & assignFlag & " " & name & " = evDiv(" & name & ", " & r.code & "); " & name & ")")
       else: return EmitResult(ok: false, err: "unsupported assign op " & e.bop)
     else:
       return EmitResult(ok: false, err: "unsupported assignment target")
@@ -135,7 +137,7 @@ proc emitExpr(e: Expr; indent: int = 0): EmitResult =
     if e.vinit != nil:
       let v = emitExpr(e.vinit, indent); if not v.ok: return v
       if e.vname == "$bm_rt":
-        return EmitResult(ok: true, code: "bmRt = " & v.code)
+        return EmitResult(ok: true, code: "(block: bmAssigned = true; bmRt = " & v.code & ")")
       return EmitResult(ok: true, code: "var " & name & " = " & v.code)
     else:
       if e.vname == "$bm_rt":
@@ -144,9 +146,10 @@ proc emitExpr(e: Expr; indent: int = 0): EmitResult =
   of ekSeq, ekBlock, ekProgram:
     var lines: seq[string] = @[]
     for s in e.stmts:
-      let es = emitStmt(s, indent + 1); if not es.ok: return es
-      if es.code.len > 0: lines.add ind(indent+1) & es.code
+      let es = emitStmt(s, indent); if not es.ok: return es
+      if es.code.len > 0: lines.add ind(indent) & es.code
     if e.kind == ekProgram:
+      # lines already have ind(indent) from above? no, we added ind(indent+1)
       return EmitResult(ok: true, code: lines.join("\n"))
     return EmitResult(ok: true, code: "(block:\n" & lines.join("\n") & "\n" & ind(indent) & "evUndef())")
   of ekIf:
@@ -168,7 +171,15 @@ proc emitExpr(e: Expr; indent: int = 0): EmitResult =
 proc emitStmt(e: Expr; indent: int): EmitResult =
   if e == nil: return EmitResult(ok: true, code: "discard")
   case e.kind
-  of ekVarDecl, ekIf, ekReturn, ekBlock, ekProgram, ekSeq:
+  of ekSeq:
+    # statement sequence: emit lines without scoping block (keeps var decls visible)
+    var lines: seq[string] = @[]
+    for s in e.stmts:
+      let es = emitStmt(s, indent)
+      if not es.ok: return es
+      if es.code.len > 0: lines.add es.code
+    return EmitResult(ok: true, code: lines.join("\n" & ind(indent)))
+  of ekVarDecl, ekIf, ekReturn, ekBlock, ekProgram:
     return emitExpr(e, indent)
   else:
     let r = emitExpr(e, indent)
@@ -182,10 +193,10 @@ proc emitProgram*(prog: Expr; procName = "exprFn"): EmitResult =
   ## Emit a Nim proc skeleton (runtime types provided in Paso 3).
   let body = emitExpr(prog, 0)
   if not body.ok: return body
-  let code = fmt"""
-proc {procName}*(ctx: ExprCtx): ExprVal =
-  var bmRt = evUndef()
-  {body.code.replace("\n", "\n  ")}
-  bmRt
-"""
+  let bodyIndented = "  " & body.code.replace("\n", "\n  ")
+  let code = "proc " & procName & "*(ctx: ExprCtx): Option[Val] =\n" &
+    "  var bmRt: Val = evUndef()\n" &
+    "  var bmAssigned = false\n" &
+    bodyIndented & "\n" &
+    "  if bmAssigned: some(bmRt) else: none(Val)\n"
   return EmitResult(ok: true, code: code)

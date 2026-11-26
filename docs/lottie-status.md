@@ -86,3 +86,9 @@
 2. Alinear semántica builder con C++ (RenderContext/propagator, merge/fragment, draw order).
 3. Phase 3: raster/render pipeline completo y paridad visual corpus sin expresiones.
 4. Phase 4: expresiones `$bm_rt`/common, sin motor JS completo.
+
+## Expresiones (AOT, sin JS) - estado
+- Phase 0-1d/2/3a: inventory+oráculos+boundary+exprc+runtime/boundary completados (ver `docs/lottie-expressions-notes.md`). D1-exc1/2/3 declaradas.
+- Paso 3b (parcial): runtime $bm_* oracle-alineado, emitter `Option[Val]`+`bmAssigned`, hash FNV-1a compartido (`src/thorvg/lottie/expr/hash.nim`), pack generado `src/generated/expr_audio_layer.nim` (hash `7ef68f4253eeaf2b`) con `tools/exprc/gen_audio_pack.nim --check`.
+- Tests: `test_expr_boundary` 116, `test_exprc` 46, `test_expr_runtime` 61, `test_expr_pack` 4. Gates sin regresión: `phase2_builder` 19/19 (`audio_layer` XFAIL), `text_compose` 44/44.
+- Pendiente: integración registry/cargador + hook captura Nim vs `audio_layer_dense.jsonl`, retirar heurística parser, retirar XFAIL solo con denso+render verde.
