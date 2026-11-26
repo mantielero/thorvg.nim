@@ -110,8 +110,9 @@ Casos: `tests/lottie/harness/gen_expr_1b_cases.py` -> `tests/lottie/expr_1b_case
 ### 1) Estado global / fuga $bm_rt (CRÍTICO)
 - `leak_r_to_o`: r asigna `$bm_rt=50`, o tiene expr sin `$bm_rt` (`var x=1;`). Resultado: o devuelve 127 (=50*2.55). **Fuga entre propiedades** en la misma evaluación/contexto.
 - `leak_layer_to_layer`: L1.r asigna 77, L2.r expr sin `$bm_rt`. Resultado: L2.r devuelve 77. **Fuga entre capas**.
-- `leak_frame_to_frame`: r asigna `$bm_rt=99` solo si `time < 0.01`; frames posteriores devuelven 0 (estático). **No se observa fuga entre frames** en este caso aislado.
-- Implicación: `$bm_rt` es estado global mutable del motor JS. Resultado depende del orden de evaluación. **No replicar** este comportamiento en AOT; documentar como no determinista de ThorVG y emitir warning cuando una expr no asigna `$bm_rt` de forma definitiva. AOT debe tratar "no asigna $bm_rt" como `None`/usar estático.
+- `leak_frame_to_frame`: **CORRECCIÓN** - el golden 1b (`dump_expr` crea un `Animation` nuevo por frame) ocultaba la fuga. Con la **misma animación** reutilizada (forward/seek-back), frames 0,0.5,1,2 y seek 0,1,2,1,0 devuelven todos 99. **También hay fuga entre frames** en el mismo objeto/ctx. La fuga es estado global mutable persistente del contexto JS mientras vive la animación.
+- Implicación: `$bm_rt` es estado global mutable del motor JS; depende de orden de evaluación y persiste en la vida del contexto de animación. **No replicar** en AOT. AOT debe tratar "no asigna $bm_rt definitivo" como `None`/usar estático + warning contado.
+- **D1-exc1 (excepción declarada a D1)**: en documentos mixtos (al menos una expr que asigna y otra que no asigna siempre), ThorVG puede propagar valor por fuga; Nim caerá a estático. Divergencia real y aceptada. Requiere `known_divergences.txt` (motivo + golden Nim esperado, no C++) y warning contado de exprc/inventario para cualquier .lot mixto expuesto. Hoy no hay ninguno en el corpus.
 
 ### 2) Asignación condicional
 - `cond_both`: ambas ramas asignan -> valor esperado por rama (10 cuando time<=0.5s, 45 cuando >0.5s).
@@ -123,18 +124,19 @@ Casos: `tests/lottie/harness/gen_expr_1b_cases.py` -> `tests/lottie/expr_1b_case
 - `bool true/false`: observado fallback estático (0) en prop escalar rotación (verificar con más casos; posible ruta toFloat/undefined).
 - `string`: fallback estático (0).
 - escalar en prop vectorial (position): fallback estático `[0,0]`.
-- array en prop escalar (rotation, `[1,2]`): observado `[1]` (coerción por toFloat/Number de array JS? Number([1,2])=NaN, Number([1])=1 - consistente con [1]; confirmar).
+- array en prop escalar (rotation, `[1,2]`): observado `[1]`. **No es coerción JS** (`Number([1,2])` es NaN, `Number([1])` es 1). Regla ThorVG: probablemente primer elemento. Añadir casos `[3]`, `[1,2,3]`, `[]` para confirmar. Oráculo manda.
 
 ### 4) Errores de ejecución
 - identificador no definido y `throw`: `evaluate()` captura excepción, deshabilita expr (`exp->disabled=true`), retorna undefined -> fallback estático. En AOT, identificador desconocido será error de compilación (divergencia consciente, anotar).
 
 ### 5) Opacidad (0-100 expr -> uint8)
-- Borde observado: 0->0, 0.4->1, 49.99->127, 50->127, 99.9->254, 100->255. Conversión efectiva `toFloat*2.55f` y cast/trunc a uint8 (50*2.55=127.5 -> 127).
+- Borde observado: 0->0, 0.4->1, 49.99->127, 50->127, 99.9->254, 100->255. Trunca (no redondea).
+- **float32 requerido**: `100*2.55f` en float64 da 254.99999523 -> trunc 254; en float32 `100f32*2.55f32` da 255.0f32 -> 255. Implementar como `uint8(float32(v) * 2.55'f32)`. Reusar función de conversión de opacidad estática en Nim. Tolerancia opacidad: **exacta** (±1 escondería error float32/float64). Pendiente: barrido 0..100 paso 0.1.
 
 ### Tolerancia propuesta (formalizar en tests)
-- Float props: `|a-b| <= 4e-7*|b| + 1e-9` (1-2 ulp float32) tras frontera; comparar valor de propiedad, no float64 interno.
-- Opacity uint8: exacto o ±1 si se demuestra diferencia de redondeo; datos actuales sugieren trunc.
-- Nota: jerryscript puede usar libm propia vs sistema; documentar build.
+- Float props: `|a-b| <= 4e-7*|b| + 1e-9` (1-2 ulp float32) tras frontera; comparar valor de propiedad, no float64 interno. Documentar libm de jerryscript (propia vs sistema) y comparar tras frontera float32.
+- Opacity uint8: **exacta**. Conversión en float32: `uint8(float32(v)*2.55'f32)`. Barrido 0..100 paso 0.1 pendiente.
+- Errores/deshabilitado: `evaluate()` pone `exp->disabled=true` tras excepción (estado dependiente de orden frames). Anotado; si exprc acepta construcciones que puedan lanzar en runtime, reaparece.
 
 ### Cambio Nim (parser)
 - Warning contado cuando expr no contiene `$bm_rt`: "expression but never assigns $bm_rt; ignored as in ThorVG 1.2.0" (heurística; análisis definitivo en compilador). Elimina silencio semántico en casos tipo test5.
@@ -142,5 +144,6 @@ Casos: `tests/lottie/harness/gen_expr_1b_cases.py` -> `tests/lottie/expr_1b_case
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
 - `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones sin `$bm_rt` (muertas por diseño en ThorVG 1.2.0) - Nim emite warning contado.
-- Fuga `$bm_rt` entre props/capas es comportamiento no determinista dependiente de orden; no replicar en AOT.
+- Fuga `$bm_rt` entre props/capas/frames (mismo contexto animación) es comportamiento no determinista dependiente de orden; **D1-exc1**: no replicar en AOT. Usar `known_divergences.txt` (motivo + golden Nim esperado) separado de `known_failing`.
+- Casos de tipos/errores deben usar estáticos distintivos (ej. 33.3 escalares, [7,9] vectores) para no confundir "fallback estático" con "coercionó a 0".
 - C++ build de referencia ya tiene `lottie_exp`; se puede usar como oráculo.
