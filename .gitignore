@@ -17,6 +17,10 @@ HELP.md
 migration/
 
 
+# Python
+__pycache__/
+*.pyc
+
 # Nim
 nimcache/
 nimblecache/

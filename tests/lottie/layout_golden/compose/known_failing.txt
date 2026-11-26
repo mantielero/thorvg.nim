@@ -1,0 +1,25 @@
+# tests/lottie/layout_golden/compose/known_failing.txt
+# Casos que hoy fallan contra el oraculo C++ 1.2.0. Formato: <caso>  # <categoria>
+# Regla (ratchet): un caso listado que PASA hace fallar el test (hay que quitarlo);
+# un caso NO listado que falla tambien. La lista solo debe encoger.
+# Actualizar via KNOWN_SNAPSHOT=1 y revisar diff antes de fusionar.
+
+full_pos_rot_scale        # range-pr: p/r del range animator sin aplicar/componer como C++
+group_all                 # grouping (confundido con range-pr; groupscale_* PASS)
+group_chars               # grouping (confundido con range-pr; groupscale_* PASS)
+group_lines               # grouping (confundido con range-pr; groupscale_* PASS)
+group_words               # grouping (confundido con range-pr; groupscale_* PASS)
+pair_position_rotation    # range-pr
+pair_position_scale       # range-pr
+pair_rotation_scale       # range-pr (delata orden de composicion)
+range_factor_half         # selector aplicado via p (confundido; range_*_opacity PASS)
+range_offset_animated     # selector aplicado via p (confundido; range_*_opacity PASS)
+range_triangle_edge       # selector aplicado via p (confundido; range_*_opacity PASS)
+single_position           # range-pr: p del range animator sin aplicar
+single_rotation           # range-pr: r del range animator sin aplicar
+track_neg_boxwide         # tracking sin wrap (caja ancha)
+track_neg_nowrap          # tracking sin wrap ni caja
+track_pos_boxwide         # tracking sin wrap (caja ancha)
+track_pos_nowrap          # tracking sin wrap ni caja
+wrap_neg_tracking         # tracking+wrap
+wrap_pos_tracking         # tracking+wrap (conteo glifos difiere)
