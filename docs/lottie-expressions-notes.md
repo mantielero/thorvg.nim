@@ -183,6 +183,12 @@ Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
 - Heurística parser `$bm_rt` en fuente sigue temporal; retirar cuando integración use análisis definitivo.
 - Tests: `tests/lottie/test_exprc.nim` (46 pass). Gates: phase2_builder 19/19, text_compose 44/44.
 
+## Paso 3a - Runtime/frontera (sin integración)
+- `src/thorvg/lottie/expr/val.nim`: `Val` = `undefined|null|num(float64)|bool|string|array(seq[Val])` (NaN es número).
+- `src/thorvg/lottie/expr/boundary.nim`: frontera única `toPropScalar`/`toPropVec(dim)`/`toPropOpacityU8` + `staticOpacityU8`. D1-exc2 clamp opacidad; D1-exc3 no-numérico/anidado->0 (NaN preservado). Parser estático usa `staticOpacityU8`.
+- `tests/lottie/test_expr_boundary.nim`: tabla desde `expr_boundary_cases.json`; `observed`+`ub` validados (nimExpected/expected), sweep 1001 exacto, falla si queda `pending-oracle`. **116 pass, 0 fail, 0 pending**.
+- Corrección: `op_inf` nimExpected clamp -> 255 (p=+Inf>=255); C++ x86 observado 0 UB, ARM puede saturar 255.
+
 ## Paso 1d - Frontera de propiedad / oracle (expr_boundary_cases)
 - Tabla fuente: `tests/lottie/expr_boundary_cases.json` (65 casos; observed/pending-oracle/diagnostic). Generador: `tests/lottie/harness/gen_expr_boundary_cases.py`. Goldens: `tests/lottie/expr_boundary_golden/`.
 - **Scalar**: `null`->0; `"5"`->0 (no JS coercion); `[NaN,2]`->NaN; `[true,2]`->0; `[undefined,2]`->0 (distinto de undefined escalar->static); `["a",2]` y `[[1,2],3]` dan valores basura/UB-like observados en C++ (**no replicar como semántica**; decidir clamp/fallback/divergencia).

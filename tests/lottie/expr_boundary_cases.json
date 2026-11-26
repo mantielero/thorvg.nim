@@ -1117,15 +1117,15 @@
       },
       "expected": {
         "k": "u8",
-        "v": 0
+        "v": 255
       },
       "status": "ub",
       "source": "new",
-      "note": "fuera de rango: UB en C++; decidir replicar o clamp (divergencia declarada); UB C++ (observado 0); DECISIÓN: clamp+divergencia declarada; D1-exc2: clamp uint8(float32(v)*2.55f32) tras NaN<=0<=255>=255; +Infinity puede saturar a 255 en ARM - dependiente de plataforma",
+      "note": "UB C++ (observado 0 x86/indefinido); D1-exc2: clamp -> 255 (p=+Inf>=255); en ARM C++ puede saturar a 255 (coincide). dependiente de plataforma",
       "cpp_observed_ub": 0,
       "nimExpected": {
         "k": "u8",
-        "v": 0
+        "v": 255
       }
     },
     {

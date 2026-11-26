@@ -3,5 +3,5 @@
 {"case":"op_150","prop":"ks.o","nim_expected_u8":255,"cpp_observed_ub":126,"note":"clamp; UB C++ wrap"}
 {"case":"op_1000","prop":"ks.o","nim_expected_u8":255,"cpp_observed_ub":246,"note":"clamp; UB C++ wrap"}
 {"case":"op_nan","prop":"ks.o","nim_expected_u8":0,"cpp_observed_ub":0,"note":"clamp NaN->0"}
-{"case":"op_inf","prop":"ks.o","nim_expected_u8":0,"cpp_observed_ub":0,"note":"clamp; +Inf puede saturar 255 en ARM - dependiente plataforma"}
+{"case":"op_inf","prop":"ks.o","nim_expected_u8":255,"cpp_observed_ub":0,"note":"clamp +Inf->255 (p>=255); C++ x86 observado 0 UB, ARM puede saturar 255"}
 {"case":"op_ninf","prop":"ks.o","nim_expected_u8":0,"cpp_observed_ub":0,"note":"clamp -Inf->0"}

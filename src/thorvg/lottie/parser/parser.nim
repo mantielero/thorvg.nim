@@ -5,6 +5,7 @@ import jsony
 import ../model/[common, model, property]
 import ../../core/types
 import ../animation/interpolator
+import ../expr/boundary
 
 type
   LottieParseError* = object of ValueError
@@ -169,7 +170,7 @@ proc parseOpacityFrames(k: JsonNode; def: uint8): LottieGenericProperty[LottieSc
     var f: LottieScalarFrame[uint8]
     f.no = asFloat(item.getNode("t"))
     if item.hasKey("s"):
-      f.value = uint8(clamp(int(asFloat(item["s"]) * 2.55'f32), 0, 255))
+      f.value = staticOpacityU8(asFloat(item["s"]))
     elif hasPendingE:
       f.value = pendingE; hasPendingE = false
     else:
@@ -180,21 +181,21 @@ proc parseOpacityFrames(k: JsonNode; def: uint8): LottieGenericProperty[LottieSc
     if item.hasKey("o"): outTan = getInterpolatorPoint(item["o"]); hasInterp = true
     if hasInterp: f.interpolator = makeInterpolator(inTan, outTan)
     if item.hasKey("e"):
-      pendingE = uint8(clamp(int(asFloat(item["e"]) * 2.55'f32), 0, 255))
+      pendingE = staticOpacityU8(asFloat(item["e"]))
       hasPendingE = true
     result.frames.add(f)
   if result.frames.len > 0: result.value = result.frames[0].value
 
 proc parseOpacityProp(j: JsonNode; defPct: float32 = 100.0'f32): LottieGenericProperty[LottieScalarFrame[uint8], uint8] =
-  let defVal = uint8(clamp(int(defPct * 2.55'f32), 0, 255))
+  let defVal = staticOpacityU8(defPct)
   var sid: uint32 = 0
   if j.kind == JObject and j.hasKey("sid") and j["sid"].kind == JString: sid = djb2Encode(j["sid"].getStr())
   if j.kind != JObject:
-    result = newScalarProp(uint8(clamp(int(asFloat(j, defPct) * 2.55'f32), 0, 255))); result.sid = sid; return
+    result = newScalarProp(staticOpacityU8(asFloat(j, defPct))); result.sid = sid; return
   let a = asInt(j.getNode("a"), 0)
   let k = j.getNode("k")
   if a == 0 or k.kind != JArray:
-    result = newScalarProp(uint8(clamp(int(asFloat(k, defPct) * 2.55'f32), 0, 255)))
+    result = newScalarProp(staticOpacityU8(asFloat(k, defPct)))
   else:
     result = parseOpacityFrames(k, defVal)
   result.sid = sid
