@@ -100,7 +100,7 @@ proc main() =
         if allowed:
           echo fmt"  AAEDGE {name}@{frameNo} diffPx={cmp.diffPixels}/{cmp.total} maxDiff={cmp.maxDiff}"
         elif name == "audio_layer":
-          echo fmt"  XFAIL {name}@{frameNo} diffPx={cmp.diffPixels}/{cmp.total} maxDiff={cmp.maxDiff} (expected: $bm_rt expressions out of scope, no JS/AOT subset; not regression)"
+          echo fmt"  XFAIL {name}@{frameNo} diffPx={cmp.diffPixels}/{cmp.total} maxDiff={cmp.maxDiff} (expected: $bm_rt AOT pack integrated, dense 229/229; residual render diff pending, not regression)"
         else:
           echo fmt"  DIFF {name}@{frameNo} diffPx={cmp.diffPixels}/{cmp.total} maxDiff={cmp.maxDiff}"
           caseOk = false

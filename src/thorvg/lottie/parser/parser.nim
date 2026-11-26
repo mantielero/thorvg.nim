@@ -1,16 +1,20 @@
 ## Minimal Lottie JSON parser for Phase 1 (transform/property evaluation).
 
-import std/[json, math, tables, strutils, os]
+import std/[json, math, tables, strutils, os, options]
 import jsony
 import ../model/[common, model, property]
 import ../../core/types
 import ../animation/interpolator
-import ../expr/boundary
+import ../expr/[boundary, registry, packs, hash, runtime, val]
+import ../../../../tools/exprc/[ast, lexer, parser as exprParser, analysis]
 
 type
   LottieParseError* = object of ValueError
 
 var gSlotBindings: seq[LottieSlotBinding] = @[]
+var gCompFr: float32 = 30.0'f32
+var gExprRegistry*: ExprRegistry = initExprRegistry(rmStrict)
+registerBuiltinExprPacks(gExprRegistry)
 
 proc djb2Encode(s: string): uint32 =
   var h: uint32 = 5381'u32
@@ -57,15 +61,57 @@ proc hasExpr(j: JsonNode): bool =
 proc exprSource(j: JsonNode): string =
   if hasExpr(j): j["x"].getStr else: ""
 
-proc warnExpr(warnings: var seq[string]; ctx, prop: string; j: JsonNode) =
-  ## Emit structured warning for expression. ThorVG 1.2.0 evaluate() reads $bm_rt
-  ## from global; expressions that never assign $bm_rt fall back to static.
+proc exprDiagPrefix(ctx, prop: string): string =
+  ctx & ": " & prop & " expression"
+
+proc bindExprProp*[F,V](p: LottieGenericProperty[F,V]; j: JsonNode; warnings: var seq[string]; ctx, prop: string) =
+  ## Analyze+bind expression using definitive $bm_rt analysis (single source of truth).
+  ## D1-exc1: no definitive $bm_rt => static fallback + warning.
   if not hasExpr(j): return
   let src = exprSource(j)
-  if "$bm_rt" notin src:
-    warnings.add(ctx & ": " & prop & " has expression but never assigns $bm_rt; ignored as in ThorVG 1.2.0")
+  let pr = exprParser.parseProgram(src)
+  if not pr.ok:
+    for d in pr.diags:
+      warnings.add(exprDiagPrefix(ctx, prop) & " parse error: " & d.msg)
+    return
+  # read-before-assign diagnostics (conservative, counted as warning)
+  let rba = readBeforeAssignBmRt(pr.expr)
+  for d in rba:
+    warnings.add(exprDiagPrefix(ctx, prop) & " " & d.msg)
+  let definitive = definitiveBmRt(pr.expr)
+  if not definitive:
+    warnings.add(exprDiagPrefix(ctx, prop) & " no definitive $bm_rt; ignored (D1-exc1 static fallback)")
+    return
+  let h = exprHash(src)
+  let fn = gExprRegistry.lookup(h, exprDiagPrefix(ctx, prop))
+  if fn == nil:
+    # registry already recorded error in Strict or counted in IgnoreCounted
+    for e in gExprRegistry.errors:
+      if e notin warnings: warnings.add(e)
+    if gExprRegistry.mode == rmIgnoreCounted:
+      warnings.add(exprDiagPrefix(ctx, prop) & " hash " & h & " not in AOT registry; ignored (IgnoreCounted)")
+    return
+  p.exprEval = bindFrameEval(fn, gCompFr)
+
+proc warnExpr(warnings: var seq[string]; ctx, prop: string; j: JsonNode) =
+  ## Legacy helper for sites not yet bound to a property (kept for compatibility).
+  if not hasExpr(j): return
+  let src = exprSource(j)
+  let pr = exprParser.parseProgram(src)
+  if not pr.ok:
+    warnings.add(exprDiagPrefix(ctx, prop) & " parse error")
+    return
+  if not definitiveBmRt(pr.expr):
+    warnings.add(exprDiagPrefix(ctx, prop) & " no definitive $bm_rt; ignored (D1-exc1 static fallback)")
   else:
-    warnings.add(ctx & ": " & prop & " has expression, skipped")
+    let h = exprHash(src)
+    let fn = gExprRegistry.lookup(h, exprDiagPrefix(ctx, prop))
+    if fn == nil:
+      for e in gExprRegistry.errors:
+        if e notin warnings: warnings.add(e)
+      if gExprRegistry.mode == rmIgnoreCounted:
+        warnings.add(exprDiagPrefix(ctx, prop) & " hash " & h & " not in AOT registry; ignored (IgnoreCounted)")
+    # bound case: warnExpr can't attach; callers should use bindExprProp
 
 proc asColor(j: JsonNode; def = LottieColor(r:0,g:0,b:0)): LottieColor =
   if j.kind == JArray and j.len >= 3:
@@ -392,45 +438,45 @@ proc parseTransform(j: JsonNode; warnings: var seq[string]; layerName: string): 
   if j.kind != JObject: return
   let t = result
   if j.hasKey("o"):
-    warnExpr(warnings, "layer '" & layerName & "'", "opacity", j["o"])
     t.opacity = parseOpacityProp(j["o"], 100.0'f32)
+    bindExprProp(t.opacity, j["o"], warnings, "layer '" & layerName & "'", "opacity")
     if t.opacity.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.opacity.sid, apply: proc(ov: JsonNode) = t.opacity = parseOpacityProp(ov, 100.0'f32)))
   if j.hasKey("r"):
-    warnExpr(warnings, "layer '" & layerName & "'", "rotation", j["r"])
     t.rotation = parseScalarProp(j["r"], 0.0'f32)
+    bindExprProp(t.rotation, j["r"], warnings, "layer '" & layerName & "'", "rotation")
     if t.rotation.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rotation.sid, apply: proc(ov: JsonNode) = t.rotation = parseScalarProp(ov, 0.0'f32)))
   if j.hasKey("p"):
     let p = j["p"]
-    warnExpr(warnings, "layer '" & layerName & "'", "position", p)
     let sep = p.kind == JObject and p.hasKey("s") and asInt(p.getNode("s"), 0) == 1
     if sep:
       t.separate = true
       if p.hasKey("x"):
-        warnExpr(warnings, "layer '" & layerName & "'", "position.x", p["x"])
         t.sepX = parseScalarProp(p["x"], 0.0'f32)
+        bindExprProp(t.sepX, p["x"], warnings, "layer '" & layerName & "'", "position.x")
         if t.sepX.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.sepX.sid, apply: proc(ov: JsonNode) = t.sepX = parseScalarProp(ov, 0.0'f32)))
       if p.hasKey("y"):
-        warnExpr(warnings, "layer '" & layerName & "'", "position.y", p["y"])
         t.sepY = parseScalarProp(p["y"], 0.0'f32)
+        bindExprProp(t.sepY, p["y"], warnings, "layer '" & layerName & "'", "position.y")
         if t.sepY.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.sepY.sid, apply: proc(ov: JsonNode) = t.sepY = parseScalarProp(ov, 0.0'f32)))
     else:
       t.position = parsePositionProp(p, lp(0,0))
+      bindExprProp(t.position, p, warnings, "layer '" & layerName & "'", "position")
       if t.position.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.position.sid, apply: proc(ov: JsonNode) = t.position = parsePositionProp(ov, lp(0,0))))
   if j.hasKey("a"):
-    warnExpr(warnings, "layer '" & layerName & "'", "anchor", j["a"])
     t.anchor = parseScalarPointProp(j["a"], lp(0,0))
+    bindExprProp(t.anchor, j["a"], warnings, "layer '" & layerName & "'", "anchor")
     if t.anchor.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.anchor.sid, apply: proc(ov: JsonNode) = t.anchor = parseScalarPointProp(ov, lp(0,0))))
   if j.hasKey("s"):
-    warnExpr(warnings, "layer '" & layerName & "'", "scale", j["s"])
     t.scale = parseScalarPointProp(j["s"], lp(100,100))
+    bindExprProp(t.scale, j["s"], warnings, "layer '" & layerName & "'", "scale")
     if t.scale.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.scale.sid, apply: proc(ov: JsonNode) = t.scale = parseScalarPointProp(ov, lp(100,100))))
   if j.hasKey("sk"):
-    warnExpr(warnings, "layer '" & layerName & "'", "skew", j["sk"])
     t.skewAngle = parseScalarProp(j["sk"], 0.0'f32)
+    bindExprProp(t.skewAngle, j["sk"], warnings, "layer '" & layerName & "'", "skew")
     if t.skewAngle.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAngle.sid, apply: proc(ov: JsonNode) = t.skewAngle = parseScalarProp(ov, 0.0'f32)))
   if j.hasKey("sa"):
-    warnExpr(warnings, "layer '" & layerName & "'", "skew axis", j["sa"])
     t.skewAxis = parseScalarProp(j["sa"], 0.0'f32)
+    bindExprProp(t.skewAxis, j["sa"], warnings, "layer '" & layerName & "'", "skew axis")
     if t.skewAxis.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAxis.sid, apply: proc(ov: JsonNode) = t.skewAxis = parseScalarProp(ov, 0.0'f32)))
   let has3D = j.hasKey("rx") or j.hasKey("ry") or j.hasKey("rz") or j.hasKey("or")
   if has3D:
@@ -1353,6 +1399,8 @@ proc postProcessFontsGlyphs(fonts: seq[LottieFont]; glyphs: var seq[LottieGlyph]
 
 proc parseComposition*(j: JsonNode): LottieComposition =
   gSlotBindings.setLen(0)
+  gExprRegistry.errors.setLen(0)
+  gExprRegistry.ignored = 0
   result = LottieComposition(
     version: (if j.kind == JObject and j.hasKey("v"): j["v"].getStr("") else: ""),
     name: (if j.kind == JObject and j.hasKey("nm"): j["nm"].getStr("") else: ""),
@@ -1366,6 +1414,7 @@ proc parseComposition*(j: JsonNode): LottieComposition =
     slots: @[],
     slotBindings: @[]
   )
+  gCompFr = result.frameRate
   var warnings: seq[string] = @[]
   if j.kind == JObject and j.hasKey("assets") and j["assets"].kind == JArray:
     for aj in j["assets"]:

@@ -2466,8 +2466,10 @@ proc update*(b: LottieBuilder; frameNo: float32; targetW = 0.0'f32; targetH = 0.
   discard clip.appendRect(0, 0, tw, th)
   discard b.root.clip(clip)
   resolveMatteTargets(b.comp.layers)
+  let maxFrame = max(b.comp.inPoint, b.comp.outPoint - 1.0'f32)
+  let fno = clamp(frameNo, b.comp.inPoint, maxFrame)
   for i in countdown(b.comp.layers.len - 1, 0):
-    discard buildLayer(b.comp, b.comp.layers, b.comp.layers[i], frameNo, b.root, b = b)
+    discard buildLayer(b.comp, b.comp.layers, b.comp.layers[i], fno, b.root, b = b)
   if tw != b.comp.w or th != b.comp.h:
     let sx = tw / b.comp.w
     let sy = th / b.comp.h

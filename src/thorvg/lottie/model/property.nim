@@ -1,8 +1,10 @@
 ## Lottie property model and keyframe evaluation (port of tvgLottieProperty).
 
 import std/math
+import std/options
 import common
 import ../animation/interpolator
+import ../expr/[val, boundary]
 
 type
   LottieScalarFrame*[T] = object
@@ -22,12 +24,15 @@ type
     hasTangent*: bool
     hold*: bool
 
+  LottieExprEval* = proc(frameNo: float32): Option[Val] {.gcsafe.}
+
   LottieGenericProperty*[F, V] = ref object
     frames*: seq[F]
     value*: V
     hasFrames*: bool
     ix*: uint8
     sid*: uint32
+    exprEval*: LottieExprEval ## optional AOT expression; returns Option[Val]
 
 proc lerpValue(a, b: float32; t: float32): float32 {.inline.} = lerp(a,b,t)
 proc lerpValue(a, b: LottiePoint; t: float32): LottiePoint {.inline.} = lerp(a,b,t)
@@ -216,6 +221,23 @@ proc prepareVector*(f: var LottieVectorFrame[LottiePoint]; next: LottieVectorFra
 
 # Generic property eval
 proc eval*[F,V](p: LottieGenericProperty[F,V]; frameNo: float32): V =
+  if p.exprEval != nil:
+    let ev = p.exprEval(frameNo)
+    if ev.isSome:
+      let vv = ev.get()
+      when V is float32:
+        let s = toPropScalar(vv)
+        if s.isSome: return float32(s.get())
+      elif V is uint8:
+        let o = toPropOpacityU8(vv)
+        if o.isSome: return o.get()
+      elif V is LottiePoint:
+        let vec = toPropVec(vv, 2)
+        if vec.isSome and vec.get().len >= 2:
+          return LottiePoint(x: float32(vec.get()[0]), y: float32(vec.get()[1]))
+      else:
+        discard
+    # None/static fallback: continue to animated/static value
   if not p.hasFrames or p.frames.len == 0:
     return p.value
   if p.frames.len == 1 or frameNo <= p.frames[0].no:

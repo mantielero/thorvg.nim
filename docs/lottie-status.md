@@ -88,7 +88,7 @@
 4. Phase 4: expresiones `$bm_rt`/common, sin motor JS completo.
 
 ## Expresiones (AOT, sin JS) - estado
-- Phase 0-1d/2/3a: inventory+oráculos+boundary+exprc+runtime/boundary completados (ver `docs/lottie-expressions-notes.md`). D1-exc1/2/3 declaradas.
-- Paso 3b (parcial): runtime $bm_* oracle-alineado, emitter `Option[Val]`+`bmAssigned`, hash FNV-1a compartido (`src/thorvg/lottie/expr/hash.nim`), pack generado `src/generated/expr_audio_layer.nim` (hash `7ef68f4253eeaf2b`) con `tools/exprc/gen_audio_pack.nim --check`.
-- Tests: `test_expr_boundary` 116, `test_exprc` 46, `test_expr_runtime` 61, `test_expr_pack` 4. Gates sin regresión: `phase2_builder` 19/19 (`audio_layer` XFAIL), `text_compose` 44/44.
-- Pendiente: integración registry/cargador + hook captura Nim vs `audio_layer_dense.jsonl`, retirar heurística parser, retirar XFAIL solo con denso+render verde.
+- Phase 0-1d/2/3a/3b: inventory+oráculos+boundary+exprc+runtime/boundary+hash+registry+pack completados (ver `docs/lottie-expressions-notes.md`). D1-exc1/2/3 declaradas.
+- Paso 3c (parcial): `audio_layer` rotación integrada vía registry AOT; denso **229/229** vs `audio_layer_dense.jsonl`; heurística `$bm_rt` parser retirada (análisis definitivo). Builder clamp `[inPoint,outPoint-1]`.
+- Tests: `test_expr_boundary` 116, `test_exprc` 46, `test_expr_runtime` 61, `test_expr_pack` 4, `test_expr_audio_dense` 229. Gates: `phase2_builder` 19/19 (`audio_layer` XFAIL residual render @0/@28.5, no regresión), `text_compose` 44/44.
+- Pendiente: investigar residual render audio_layer@0/@28.5, ampliar packs/props integradas, retirar XFAIL solo con denso+render verde.
