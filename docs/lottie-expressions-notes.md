@@ -79,7 +79,31 @@ Estado: `pendiente` | `en-alcance` | `fuera-alcance` | `hecho`
 - **D2. Modelo de carga**: recomendado registro por hash (Lotties runtime funcionan si precompilados; si no, error estructurado). Alternativa build-time estático más simple pero no carga ficheros arbitrarios.
 - **D3. Aleatoriedad**: `wiggle/random/noise/gaussRandom` requieren replicar algoritmo/semilla de ThorVG para paridad numérica. Decidir en Fase 6.
 
+## Phase 1 - Oráculo de expresiones (en progreso)
+
+### Harness
+- `tests/lottie/harness/dump_expr.cpp`: parche/lectura sobre headers privados (define private public), carga .lot, renderiza por frame (draw+sync) y vuelca propiedades con `exp != null` como JSONL: `{layer,id,prop,frame,value:[...]}`.
+- Compilación: enlaza contra objetos de `/tmp/opencode/thorvg-lottie-build/src/libthorvg-1.so.1.2.0.p` + simd `.a` (símbolos internos ocultos en .so). Script: `tests/lottie/harness/run_expr_dump.sh`.
+- Build ref: `/tmp/opencode/thorvg-lottie-build`, `extra=[lottie_exp]`.
+
+### Hallazgo semántico (crítico)
+- `LottieExpressions::evaluate()` evalúa el código con jerryscript y devuelve `jerry_object_get_sz(context.global, "$bm_rt")`. **Ignora el valor de retorno del eval**. Por tanto, expresiones sin asignación a `$bm_rt` caen a undefined -> fallback al valor estático.
+- Confirma por qué `test5.lot` (expresiones sin `$bm_rt`, solo valor final implícito) es insensible en frames golden muestreados y el dump devuelve estáticos. `audio_layer` asigna `$bm_rt` y sí evalúa.
+- Implicación para AOT: el lowering/emisor debe asignar el resultado final a `$bm_rt` (o el runtime debe leerlo de forma equivalente). Para corpus, solo expresiones que establecen `$bm_rt`/semántica equivalente ThorVG son evaluadas por el motor C++.
+
+### Oráculos sintéticos
+- Generador: `tests/lottie/harness/gen_expr_cases.py` -> `tests/lottie/expr_cases/` (9 casos + 9 bases, manifiesto con frames `[0,7.5,15,22.5,30,45,60,89]`).
+- Golden JSONL: `tests/lottie/expr_golden/*.jsonl`.
+- Cobertura corpus: `time`, `var`+asignación, aritmética, `Math.sin/cos/exp`, `$bm_rt/$bm_div/$bm_mul`, array literal, opacidad escalar.
+- Determinismo: dos ejecuciones idénticas (verificado para los 9 casos). Sensibilidad: todos difieren del valor estático base.
+
+### Precisión numérica (frontera)
+- Jerryscript ejecuta JS con semántica numérica **float64** (Number IEEE 754). ThorVG expone `toFloat`/operadores sobre double/float según propiedad.
+- Opacidad: expresión devuelve 0-100 en estilo AE, ThorVG convierte `toFloat(bm_rt)*2.55f` y almacena como uint8 (0-255). Dump muestra valor uint8.
+- Rotación/posición/escala: float en propiedades. Dump usa `%.9g`.
+- Decisión pendiente de fijar formalmente en tests de oráculo: tolerancia de comparación (proponer abs 1e-5 para float props, exacto/±1 para uint8 opacity tras conversión).
+
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
-- `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones pero frames golden muestreados insensibles.
+- `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones pero frames golden muestreados insensibles (y además no asignan `$bm_rt`, por lo que ThorVG 1.2.0 cae a fallback).
 - C++ build de referencia ya tiene `lottie_exp`; se puede usar como oráculo de Fase 1.

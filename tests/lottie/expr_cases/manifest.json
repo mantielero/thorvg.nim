@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "name": "expr_time_rot",
+      "base": "expr_time_rot_base",
+      "prop": "ks.r",
+      "expr": "var $bm_rt = time * 10;"
+    },
+    {
+      "name": "expr_var_rot",
+      "base": "expr_var_rot_base",
+      "prop": "ks.r",
+      "expr": "var a = 5; var b = 3; var $bm_rt = a * b + time;"
+    },
+    {
+      "name": "expr_math_sin_rot",
+      "base": "expr_math_sin_rot_base",
+      "prop": "ks.r",
+      "expr": "var $bm_rt = Math.sin(time * 2) * 45;"
+    },
+    {
+      "name": "expr_math_cos_rot",
+      "base": "expr_math_cos_rot_base",
+      "prop": "ks.r",
+      "expr": "var $bm_rt = Math.cos(time * 2) * 45;"
+    },
+    {
+      "name": "expr_math_exp_rot",
+      "base": "expr_math_exp_rot_base",
+      "prop": "ks.r",
+      "expr": "var $bm_rt = 10 / Math.exp(time);"
+    },
+    {
+      "name": "expr_bm_rt_div_mul",
+      "base": "expr_bm_rt_div_mul_base",
+      "prop": "ks.r",
+      "expr": "var $bm_rt; var $bm_rt; $bm_rt = $bm_rt = div(mul(10, Math.sin(mul(2, time))), Math.exp(mul(0.5, time)));"
+    },
+    {
+      "name": "expr_array_pos",
+      "base": "expr_array_pos_base",
+      "prop": "ks.p",
+      "expr": "var t = time; var $bm_rt = [50 + Math.sin(t * 2) * 20, 50 + Math.cos(t * 2) * 20];"
+    },
+    {
+      "name": "expr_array_scale",
+      "base": "expr_array_scale_base",
+      "prop": "ks.s",
+      "expr": "var s = 100 + Math.sin(time * 3) * 20; var $bm_rt = [s, s];"
+    },
+    {
+      "name": "expr_opacity",
+      "base": "expr_opacity_base",
+      "prop": "ks.o",
+      "expr": "var minO = 30; var maxO = 100; var c = Math.sin(time * 2); var $bm_rt = minO + (maxO - minO) * (c + 1) / 2;"
+    }
+  ],
+  "frames": [
+    0,
+    7.5,
+    15,
+    22.5,
+    30,
+    45,
+    60,
+    89
+  ]
+}
