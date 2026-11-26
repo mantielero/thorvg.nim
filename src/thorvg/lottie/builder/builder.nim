@@ -2132,6 +2132,10 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
   var lineSpace = 0.0'f32
 
   var lineWrapped = false
+  let alignGroup = text.alignGroup # 1=Chars,2=Word,3=Line,4=All
+  var groupGM = identity()
+  var groupSet = false
+  var groupNeedsNew = true
   proc nextWordWidth(p0: int): float32 =
     var p = p0
     while p < doc.text.len:
@@ -2152,6 +2156,8 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       totalLineSpace += lineSpace
       lineSpace = 0.0'f32
       cursorX = 0.0'f32
+      groupNeedsNew = true
+      groupSet = false
       if not lineWrapped:
         inc pos
       lineWrapped = false
@@ -2172,9 +2178,18 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
         lineWrapped = true
         continue
       inc spaceCount
+      # new text group for each word
+      if alignGroup == 2: # Word
+        groupNeedsNew = true
+        groupSet = false
     elif doc.bboxSize.x > 0.0'f32 and cursorX > 0.0'f32 and (cursorX + adv) * textScale > doc.bboxSize.x:
       lineWrapped = true
       continue
+
+    # group boundary: Chars/All => per glyph
+    if alignGroup == 1 or alignGroup == 4:
+      groupNeedsNew = true
+      groupSet = false
 
     # Range styles
     var scaling = pt(1.0'f32, 1.0'f32)
@@ -2291,27 +2306,42 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
         m.e13 = (pth.x - widthHalf) * textScale
         m.e23 = pth.y * textScale
     else:
-      # C++ 1.2.0 updateTextRange: group transform (per-glyph for All/Chars) + glyph matrix.
-      # Computed in unscaled textScene space, then baked to layer-local with layout+textScale.
+      # C++ 1.2.0 updateTextRange: group transform (lineScene) shared within group.
+      # Chars/All: group per glyph. Word: group per word. Line: group per line.
+      # Group transform set on first needGroup glyph in group; glyph matrix uses own
+      # translation/scaling relative to group origin.
       let cur = pt(cursorX, lineY)
-      let align = text.alignAnchor.eval(frameNo)
-      var gM = identity()
-      translate(gM, cur)
-      gM.e13 += align.x
-      gM.e23 += align.y
-      rotate(gM, rotation)
-      let pivot = pt(-align.x, -align.y)
-      gM.e13 += pivot.x * gM.e11 + pivot.y * gM.e12
-      gM.e23 += pivot.x * gM.e21 + pivot.y * gM.e22
-      gM.e13 += translation.x / textScale
-      gM.e23 += translation.y / textScale
+      let needGroup = hasRangeTransform
+      if needGroup and (groupNeedsNew or not groupSet):
+        let align = text.alignAnchor.eval(frameNo)
+        groupGM = identity()
+        translate(groupGM, cur)
+        groupGM.e13 += align.x
+        groupGM.e23 += align.y
+        rotate(groupGM, rotation)
+        let pivot = pt(-align.x, -align.y)
+        # Match C++ 1.2.0 tvgLottieBuilder.cpp:updateTextRange exactly (as-is).
+        groupGM.e13 += pivot.x * groupGM.e11 + pivot.x * groupGM.e12
+        groupGM.e23 += pivot.y * groupGM.e21 + pivot.y * groupGM.e22
+        groupGM.e13 += translation.x / textScale
+        groupGM.e23 += translation.y / textScale
+        groupSet = true
+        groupNeedsNew = false
 
-      var glyphM = identity()
-      let tOff = (translation / textScale + cur) - pt(gM.e13, gM.e23)
-      translate(glyphM, tOff)
-      scale(glyphM, pt(scaling.x * capScale, scaling.y * capScale))
+      var localUnscaled = identity()
+      if needGroup and groupSet:
+        var glyphM = identity()
+        let tOff = (translation / textScale + cur) - pt(groupGM.e13, groupGM.e23)
+        translate(glyphM, tOff)
+        scale(glyphM, pt(scaling.x * capScale, scaling.y * capScale))
+        localUnscaled = groupGM * glyphM
+      else:
+        # no range group: simple cursor placement (C++ _commit path equivalent)
+        localUnscaled.e11 = scaling.x * capScale
+        localUnscaled.e22 = scaling.y * capScale
+        localUnscaled.e13 = cursorX
+        localUnscaled.e23 = lineY
 
-      let localUnscaled = gM * glyphM
       # Bake textScene: translate(layout) * scale(textScale)
       m.e11 = localUnscaled.e11 * textScale
       m.e12 = localUnscaled.e12 * textScale

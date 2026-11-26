@@ -4,7 +4,3 @@
 # un caso NO listado que falla tambien. La lista solo debe encoger.
 # Actualizar via KNOWN_SNAPSHOT=1 y revisar diff antes de fusionar.
 
-group_all                 # grouping: per-glyph compose ok para All/Chars en C++? residual tx/ty small; revisar anchor/grouping
-group_chars               # grouping: residual tx/ty small
-group_lines               # grouping: necesita transform compartido por linea (no per-glyph)
-group_words               # grouping: necesita transform compartido por palabra (no per-glyph)
