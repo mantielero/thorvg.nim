@@ -123,7 +123,7 @@ En `docs/lottie-expressions-notes.md`: una fila por característica, con ejemplo
 Inferencia de tipos para eliminar el boxing de `Val`, elevación de constantes, medición contra la línea base. Sin cambios de comportamiento: el oráculo debe seguir pasando.
 
 ## Fase 9: cierre
-Documentación (`docs/lottie-expressions-notes.md`, `docs/lottie-status.md`, `GLOBAL_SUMMARY.md`), CI que regenera los packs y falla si hay diff, y tabla final de características soportadas, rechazadas y fuera de alcance.
+Documentación (`docs/lottie-expressions-notes.md`, `docs/STATUS.md`), CI que regenera los packs y falla si hay diff, y tabla final de características soportadas, rechazadas y fuera de alcance.
 
 ## Riesgos
 - **AOT frente a carga dinámica:** un Lottie nuevo con expresiones necesita un paso de compilación antes de usarse. Es la consecuencia directa de eliminar el intérprete; D2 la hace explícita.
