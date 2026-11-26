@@ -114,7 +114,7 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 | `t.d.k[].s.fc` | `color` sin init (`:96`), parser `getValue(doc.color)` (`:136`) | test3,test8 | 1/2 |
 | `t.d.k[].s.sc` | `stroke.color` sin init (`:103`), parser (`:139`) | fuera de alcance, warning contado | 4+ |
 | `t.d.k[].s.sw` | `stroke.width` sin init (`:104`), parser (`:140`) | fuera de alcance, warning contado | 4+ |
-| `t.d.k[].s.j` | `justify=0.0f` (`:113`), parser 0/1/2->0/1.0/0.5 (`:125-130`) | test3(j0),test8(j2,j0) | 2 |
+| `t.d.k[].s.j` | `justify=0.0f` (`:113`), parser 0/1/2->0/1.0/0.5 (`:125-130`); j>2 => Left + WARNING_CONTADO (probe_justify_4/5/6 wm==justify_0 en C++ 1.2.0) | test3(j0),test8(j2,j0) | 2 |
 | `t.d.k[].s.tr` | `tracking=0.0f` (`:112`), parser `getFloat()*0.1f` (`:133`) | test3,test8 | 2 |
 | `t.d.k[].s.lh` | `height` sin init (`:94`), parser `getFloat()` (`:134`) | test3,test8 | 2 |
 | `t.d.k[].s.ls` | `shift` sin init (`:95`), parser `getFloat()` (`:135`) | test3,test8 | 2 |
@@ -145,7 +145,7 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 | `t.a[].s.o` | `offset=0.0f` (`:375`) | fuera de alcance, warning contado | 3/4 |
 | `t.a[].a.p` | `style.position=Point{0,0}` (`:357`) | fuera de alcance, warning contado | 3 |
 | `t.a[].a.s` | `style.scale=Point{100,100}` (`:358`) | test8([40,40,100]) | 3 |
-| `t.a[].a.a` | anchor/transform-related range prop; confirmar mapeo C++ | fuera de alcance, warning contado | 3/4 |
+| `t.a[].a.a` | anchor en range style; C++ 1.2.0 no lo parsea (`else skip()` en tvgLottieParser.cpp) | parser emite WARNING_CONTADO, no aplicado | 3 |
 | `t.a[].a.r` | `style.rotation=0.0f` (`:362`) | fuera de alcance, warning contado | 3 |
 | `t.a[].a.o` | `style.opacity=255` (`:365`) | fuera de alcance, warning contado | 3 |
 | `t.a[].a.fc` | `style.fillColor=RGB32{255,255,255}`, flag false (`:355,367`) | fuera de alcance, warning contado | 3 |
@@ -176,3 +176,13 @@ Notas de implementación y discrepancias encontradas durante la migración Lotti
 - **C++ 1.2.0 parser** (`tvgLottieParser.cpp:parseTextFollowPath`): solo parsea `m,f,p`; ignora `l,a,r` con `skip()`.
 - **Sensibilidad test3** (frames 0,89.75000916443776,179.5000183288755,201,269.25002749331327,359.000036657751; dump_layout C++ 1.2.0-dev): mutar `t.p.r` a 0/1 y `t.p.a` a 0/1 produce JSONL idéntico al base en todos los frames comparados. `pathLength(l)` no es campo de entrada aplicado por parser; revisar solo si evidencia futura lo requiere.
 - **Decisión**: `reversePath/forceAlignment/pathLength` quedan como **no aplicados por referencia C++ 1.2.0**; mantener parseo estructurado/warning contado si aparecen en casos gate, sin implementar semántica inventada. Reabrir solo con evidencia de diferencia en C++ reference/gate.
+
+
+## ty5 compose wm / cierres (2026-11-26)
+- **Oracle wm**: 44 casos sintéticos en `tests/lottie/layout_golden/compose/` contra C++ 1.2.0-dev (`/tmp/opencode/dump_layout`). Ratchet `known_failing.txt` **vacío** (44/44 pass, sensibilidad+determinismo OK). Test: `tests/lottie/test_text_compose.nim`.
+- **Fix tracking**: parser `doc.tracking = asFloat(v)*0.1` (C++ 1.2.0). Resolvió `track_*` y `wrap_*_tracking`.
+- **Fix range p/r**: acumulación position/rotation por factor; group+glyph matrix (anchor, rotate, pivot C++-exacto, translation/scale) en espacio unscaled horneado a layer-local.
+- **Fix grouping Words/Lines**: group transform (lineScene) fijado en primer glyph needGroup del grupo; glyphs siguientes reutilizan groupGM con su propia translation/scaling relativa al origen del grupo. Chars/All per-glyph.
+- **Spec warnings/diagnósticos**: `j>2` => Left + `WARNING_CONTADO` (probe_justify_4/5/6 wm==justify_0 C++ 1.2.0); range style `a.a` => `WARNING_CONTADO` no aplicado; glyph child no-path en `data.shapes` => diagnóstico claro (sin UB/crash).
+- **Gate**: `audio_layer` marcado `XFAIL` con razón escrita (`$bm_rt` fuera de alcance, no JS/AOT subset). Phase 2 gate: **19/19 pass, 0 fail, 0 skip**.
+- **test8 AA allowances**: reevaluadas tras fixes de composición; se mantienen las allowances estrechas existentes (evidencia AA-edge), sin cambio.

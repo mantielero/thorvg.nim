@@ -1779,20 +1779,25 @@ proc searchGlyph(font: LottieFont; p: string; pos: int; caps: uint8; capScale: v
       return g
   nil
 
-proc appendGlyphPath(shape: Shape; glyph: LottieGlyph; frameNo: float32) =
+proc appendGlyphPath(shape: Shape; glyph: LottieGlyph; frameNo: float32; warnings: var seq[string]; ctx: string) =
   for child in glyph.shapes:
     if child == nil: continue
     if child.objType == otGroup:
       let grp = LottieGroup(child)
       for gc in grp.children:
-        if gc != nil and gc.objType == otPath:
+        if gc == nil: continue
+        if gc.objType == otPath:
           let po = LottiePathObj(gc)
           let path = po.path.eval(frameNo)
           buildPath(shape, path)
+        else:
+          warnings.add(ctx & ": glyph shape child type " & $gc.objType & " not supported in glyph data.shapes (C++ 1.2.0 expects path); diagnostic, no UB/crash")
     elif child.objType == otPath:
       let po = LottiePathObj(child)
       let path = po.path.eval(frameNo)
       buildPath(shape, path)
+    else:
+      warnings.add(ctx & ": glyph shape type " & $child.objType & " not supported in glyph data.shapes (C++ 1.2.0 expects path/group); diagnostic, no UB/crash")
 
 proc nearbyintf32(x: float32): float32 =
   ## ties-to-even, like C++ nearbyintf
@@ -2263,7 +2268,7 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
     let shape = newShape()
     discard shape.reset()
-    appendGlyphPath(shape, glyph, frameNo)
+    appendGlyphPath(shape, glyph, frameNo, comp.warnings, "text layer '" & layer.name & "' glyph '" & glyph.code & "'")
 
     let cr = uint8(clamp(int(fillColor.r.float32 * 255.0'f32 + 0.5'f32), 0, 255))
     let cg = uint8(clamp(int(fillColor.g.float32 * 255.0'f32 + 0.5'f32), 0, 255))

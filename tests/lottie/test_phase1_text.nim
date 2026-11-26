@@ -122,6 +122,26 @@ block:
       inc gotRAL
   assertTrue(gotRAL >= 3, "test3 followPath r/a/l warnings contados")
 
+# justify j>2: C++ 1.2.0 treats as Left; Nim must emit counted warning
+block:
+  let j = parseJson("""{"v":"5.5.2","fr":30,"ip":0,"op":10,"w":10,"h":10,"fonts":{"list":[{"fName":"F","fFamily":"F","fStyle":"R","ascent":70}]},"chars":[],"layers":[{"ty":5,"nm":"t","ip":0,"op":10,"st":0,"ks":{},"t":{"d":{"k":[{"t":0,"s":{"s":10,"f":"F","t":"A","j":4,"tr":0,"lh":12,"ls":0,"fc":[1,0,0]}}]},"p":{},"m":{"g":1,"a":{"a":0,"k":[0,0]}},"a":[]}}]}""")
+  let c = parseComposition(j)
+  var got = false
+  for w in c.warnings:
+    if w.contains("justify") and w.contains("WARNING_CONTADO"): got = true
+  assertTrue(got, "j>2 warning contado")
+  let to = LottieTextObj(c.layers[0].children[0])
+  assertTrue(abs(to.doc.eval(0.0'f32).justify - 0.0'f32) < 0.001'f32, "j>2 treated as left")
+
+# anchor in range animator style: not supported by C++ 1.2.0, counted warning
+block:
+  let j = parseJson("""{"v":"5.5.2","fr":30,"ip":0,"op":10,"w":10,"h":10,"fonts":{"list":[{"fName":"F","fFamily":"F","fStyle":"R","ascent":70}]},"chars":[],"layers":[{"ty":5,"nm":"t","ip":0,"op":10,"st":0,"ks":{},"t":{"d":{"k":[{"t":0,"s":{"s":10,"f":"F","t":"A","j":0,"tr":0,"lh":12,"ls":0,"fc":[1,0,0]}}]},"p":{},"m":{"g":1,"a":{"a":0,"k":[0,0]}},"a":[{"nm":"r","s":{"t":0,"e":{"a":0,"k":100},"r":1},"a":{"a":{"a":0,"k":[0,0]},"p":{"a":0,"k":[1,2]}}}]}}]}""")
+  let c = parseComposition(j)
+  var got = false
+  for w in c.warnings:
+    if w.contains("anchor") and w.contains("range animator style") and w.contains("WARNING_CONTADO"): got = true
+  assertTrue(got, "range style anchor warning contado")
+
 # coverage: no unknown-field warning in test3/test8 text/font/char paths
 for name in ["test3", "test8"]:
   let c = parseLottieFile(readFile("upstream/test/res/" & name & ".lot"))

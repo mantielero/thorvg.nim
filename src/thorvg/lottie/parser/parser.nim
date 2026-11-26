@@ -988,7 +988,7 @@ proc parseEffects(j: JsonNode): seq[LottieEffect] =
 proc addUnknownWarn(warnings: var seq[string]; ctx, key: string) =
   warnings.add(ctx & ": unknown field '" & key & "'")
 
-proc parseTextDocument(j: JsonNode): LottieTextDocument =
+proc parseTextDocument(j: JsonNode; warnings: var seq[string]; ctx: string): LottieTextDocument =
   if j.kind != JObject: return
   for k, v in j:
     case k
@@ -999,7 +999,10 @@ proc parseTextDocument(j: JsonNode): LottieTextDocument =
       let ji = asInt(v, 0)
       if ji == 1: result.justify = 1.0'f32
       elif ji == 2: result.justify = 0.5'f32
-      else: result.justify = 0.0'f32
+      else:
+        result.justify = 0.0'f32
+        if ji > 2:
+          warnings.add(ctx & ".j: justify " & $ji & " not supported by C++ 1.2.0; treated as Left (WARNING_CONTADO)")
     of "ca": result.caps = uint8(clamp(asInt(v, 0), 0, 2))
     of "tr": result.tracking = asFloat(v, 0.0'f32) * 0.1'f32 # C++ 1.2.0: *0.1f
     of "lh": result.height = asFloat(v, 0.0'f32)
@@ -1042,7 +1045,7 @@ proc parseTextDocProp(j: JsonNode; warnings: var seq[string]; ctx: string): Lott
       f.hold = true
       var sv = item.getNode("s")
       if sv != nil and sv.kind == JObject:
-        f.value = parseTextDocument(sv)
+        f.value = parseTextDocument(sv, warnings, ctx & ".d.k.s")
         for k, _ in sv:
           if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
             addUnknownWarn(warnings, ctx & ".d.k.s", k)
@@ -1054,12 +1057,12 @@ proc parseTextDocProp(j: JsonNode; warnings: var seq[string]; ctx: string): Lott
         addUnknownWarn(warnings, ctx & ".d.k[]", k)
     let sv = kf["s"]
     if sv.kind == JObject:
-      result.value = parseTextDocument(sv)
+      result.value = parseTextDocument(sv, warnings, ctx & ".d.k.s")
       for k, _ in sv:
         if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
           addUnknownWarn(warnings, ctx & ".d.k.s", k)
   elif kj.kind == JObject:
-    result.value = parseTextDocument(kj)
+    result.value = parseTextDocument(kj, warnings, ctx & ".d.k")
     for k, _ in kj:
       if k notin ["s","f","t","j","ca","tr","lh","ls","fc","ps","sz","sc","sw","of"]:
         addUnknownWarn(warnings, ctx & ".d.k.s", k)
@@ -1147,7 +1150,7 @@ proc parseTextRange(j: JsonNode; warnings: var seq[string]; ctx: string): Lottie
       if v.kind == JObject:
         for ak, av in v:
           case ak
-          of "a": discard # anchor? sometimes present
+          of "a": warnings.add(ctx & ".a.a: anchor in range animator style not supported by C++ 1.2.0 (WARNING_CONTADO)")
           of "p": result.style.position = parseScalarPointProp(av, lp(0,0)); result.style.hasPosition = true
           of "s": result.style.scaleProp = parseScalarPointProp(av, lp(100,100)); result.style.hasScale = true
           of "r": result.style.rotation = parseScalarProp(av, 0.0'f32); result.style.hasRotation = true
