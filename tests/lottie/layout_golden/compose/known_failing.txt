@@ -4,16 +4,7 @@
 # un caso NO listado que falla tambien. La lista solo debe encoger.
 # Actualizar via KNOWN_SNAPSHOT=1 y revisar diff antes de fusionar.
 
-full_pos_rot_scale        # range-pr: p/r del range animator sin aplicar/componer como C++
-group_all                 # grouping (confundido con range-pr; groupscale_* PASS)
-group_chars               # grouping (confundido con range-pr; groupscale_* PASS)
-group_lines               # grouping (confundido con range-pr; groupscale_* PASS)
-group_words               # grouping (confundido con range-pr; groupscale_* PASS)
-pair_position_rotation    # range-pr
-pair_position_scale       # range-pr
-pair_rotation_scale       # range-pr (delata orden de composicion)
-range_factor_half         # selector aplicado via p (confundido; range_*_opacity PASS)
-range_offset_animated     # selector aplicado via p (confundido; range_*_opacity PASS)
-range_triangle_edge       # selector aplicado via p (confundido; range_*_opacity PASS)
-single_position           # range-pr: p del range animator sin aplicar
-single_rotation           # range-pr: r del range animator sin aplicar
+group_all                 # grouping: per-glyph compose ok para All/Chars en C++? residual tx/ty small; revisar anchor/grouping
+group_chars               # grouping: residual tx/ty small
+group_lines               # grouping: necesita transform compartido por linea (no per-glyph)
+group_words               # grouping: necesita transform compartido por palabra (no per-glyph)

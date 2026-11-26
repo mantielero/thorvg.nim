@@ -2178,6 +2178,8 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
 
     # Range styles
     var scaling = pt(1.0'f32, 1.0'f32)
+    var translation = pt(0.0'f32, 0.0'f32)
+    var rotation = 0.0'f32
     var fillColor = doc.color
     var strokeColor = doc.strokeColor
     var opacityU: uint8 = 255
@@ -2201,10 +2203,16 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
       hasRangeTransform = true
       dumpRangeFactor = f
 
+      # transform (C++ 1.2.0: position/scale/rotation accumulated by factor)
+      if r.style.hasPosition:
+        let rp = r.style.position.eval(frameNo)
+        translation = translation + pt(rp.x, rp.y) * f
       if r.style.hasScale:
         let rs = r.style.scaleProp.eval(frameNo)
         scaling.x = scaling.x * (f * (rs.x * 0.01'f32 - 1.0'f32) + 1.0'f32)
         scaling.y = scaling.y * (f * (rs.y * 0.01'f32 - 1.0'f32) + 1.0'f32)
+      if r.style.hasRotation:
+        rotation += f * r.style.rotation.eval(frameNo)
 
       if r.style.hasOpacity:
         let ro = r.style.opacity.eval(frameNo)
@@ -2283,9 +2291,34 @@ proc buildTextLayer(comp: LottieComposition; layers: seq[LottieLayer]; layer: Lo
         m.e13 = (pth.x - widthHalf) * textScale
         m.e23 = pth.y * textScale
     else:
-      m.e11 = gxScale; m.e22 = gyScale
-      m.e13 = cursorX * textScale + lineJustifyOffsetPx(lineCount)
-      m.e23 = layoutYPx + lineY * textScale
+      # C++ 1.2.0 updateTextRange: group transform (per-glyph for All/Chars) + glyph matrix.
+      # Computed in unscaled textScene space, then baked to layer-local with layout+textScale.
+      let cur = pt(cursorX, lineY)
+      let align = text.alignAnchor.eval(frameNo)
+      var gM = identity()
+      translate(gM, cur)
+      gM.e13 += align.x
+      gM.e23 += align.y
+      rotate(gM, rotation)
+      let pivot = pt(-align.x, -align.y)
+      gM.e13 += pivot.x * gM.e11 + pivot.y * gM.e12
+      gM.e23 += pivot.x * gM.e21 + pivot.y * gM.e22
+      gM.e13 += translation.x / textScale
+      gM.e23 += translation.y / textScale
+
+      var glyphM = identity()
+      let tOff = (translation / textScale + cur) - pt(gM.e13, gM.e23)
+      translate(glyphM, tOff)
+      scale(glyphM, pt(scaling.x * capScale, scaling.y * capScale))
+
+      let localUnscaled = gM * glyphM
+      # Bake textScene: translate(layout) * scale(textScale)
+      m.e11 = localUnscaled.e11 * textScale
+      m.e12 = localUnscaled.e12 * textScale
+      m.e13 = localUnscaled.e13 * textScale + lineJustifyOffsetPx(lineCount)
+      m.e21 = localUnscaled.e21 * textScale
+      m.e22 = localUnscaled.e22 * textScale
+      m.e23 = localUnscaled.e23 * textScale + layoutYPx
     let fm = world * m
     discard shape.transform(fm)
 
