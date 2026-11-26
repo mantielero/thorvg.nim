@@ -87,13 +87,6 @@ See:
 - [`docs/lottie-expressions-notes.md`](docs/lottie-expressions-notes.md) — expression/AOT decisions and findings
 - [`docs/AGENTS-expressions-aot.md`](docs/AGENTS-expressions-aot.md) — AOT plan/constraints
 
-## Development Notes
-
-- Do not commit generated test binaries, `HELP.md`, `HELP_extra.md`, or local `migration/STATE.md`.
-- Keep `upstream/` read-only.
-- Capture goldens from C++ harnesses/drivers, not from Nim.
-- When changing AOT expression behavior, add/update tests first where practical and keep gates green.
-
 ## License
 
 MIT (see `thorvg.nimble`). ThorVG upstream is subject to its own license in `upstream/`.
