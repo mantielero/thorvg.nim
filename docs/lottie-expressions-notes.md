@@ -176,6 +176,13 @@ Regla: primer elemento si existe, else 0. Confirmar con más tipos si aparecen.
 ### Divergencias declaradas
 `tests/lottie/expr_divergences/known_divergences.txt` creado (vacío, formato+D1-exc1). 
 
+## Paso 2 - exprc pipeline mínimo (sin integración runtime)
+- `tools/exprc/`: lexer, parser Pratt, AST, análisis conservador de asignación definitiva `$bm_rt`, emisor Nim (skeleton/runtime API Paso 3), registro hash (D2 Strict/IgnoreCounted).
+- Subconjunto observado: literales, ident, unarios/binarios, asignación/compuesta, member/index/call, array, ternario, coma/seq, var/let/const, if/else, block, return. `div/mul/sum/sub/mod` mapeados a helpers bm*.
+- Negativos diagnosticados (línea/col): `eval`, `Function`, `with`, `new`, regex literal, `this`/`globalThis`/`window`/`self`/`frames`.
+- Heurística parser `$bm_rt` en fuente sigue temporal; retirar cuando integración use análisis definitivo.
+- Tests: `tests/lottie/test_exprc.nim` (41 pass). Gates: phase2_builder 19/19, text_compose 44/44.
+
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
 - `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones sin `$bm_rt` (muertas por diseño en ThorVG 1.2.0) - Nim emite warning contado.
