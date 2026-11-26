@@ -53,6 +53,19 @@ proc getInterpolatorPoint(j: JsonNode): LottiePoint =
 proc hasExpr(j: JsonNode): bool =
   j.kind == JObject and j.hasKey("x") and j["x"].kind == JString
 
+proc exprSource(j: JsonNode): string =
+  if hasExpr(j): j["x"].getStr else: ""
+
+proc warnExpr(warnings: var seq[string]; ctx, prop: string; j: JsonNode) =
+  ## Emit structured warning for expression. ThorVG 1.2.0 evaluate() reads $bm_rt
+  ## from global; expressions that never assign $bm_rt fall back to static.
+  if not hasExpr(j): return
+  let src = exprSource(j)
+  if "$bm_rt" notin src:
+    warnings.add(ctx & ": " & prop & " has expression but never assigns $bm_rt; ignored as in ThorVG 1.2.0")
+  else:
+    warnings.add(ctx & ": " & prop & " has expression, skipped")
+
 proc asColor(j: JsonNode; def = LottieColor(r:0,g:0,b:0)): LottieColor =
   if j.kind == JArray and j.len >= 3:
     LottieColor(r: asFloat(j[0]), g: asFloat(j[1]), b: asFloat(j[2]))
@@ -378,63 +391,63 @@ proc parseTransform(j: JsonNode; warnings: var seq[string]; layerName: string): 
   if j.kind != JObject: return
   let t = result
   if j.hasKey("o"):
-    if hasExpr(j["o"]): warnings.add("layer '" & layerName & "': opacity has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "opacity", j["o"])
     t.opacity = parseOpacityProp(j["o"], 100.0'f32)
     if t.opacity.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.opacity.sid, apply: proc(ov: JsonNode) = t.opacity = parseOpacityProp(ov, 100.0'f32)))
   if j.hasKey("r"):
-    if hasExpr(j["r"]): warnings.add("layer '" & layerName & "': rotation has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "rotation", j["r"])
     t.rotation = parseScalarProp(j["r"], 0.0'f32)
     if t.rotation.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rotation.sid, apply: proc(ov: JsonNode) = t.rotation = parseScalarProp(ov, 0.0'f32)))
   if j.hasKey("p"):
     let p = j["p"]
-    if hasExpr(p): warnings.add("layer '" & layerName & "': position has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "position", p)
     let sep = p.kind == JObject and p.hasKey("s") and asInt(p.getNode("s"), 0) == 1
     if sep:
       t.separate = true
       if p.hasKey("x"):
-        if hasExpr(p["x"]): warnings.add("layer '" & layerName & "': position.x has expression, skipped")
+        warnExpr(warnings, "layer '" & layerName & "'", "position.x", p["x"])
         t.sepX = parseScalarProp(p["x"], 0.0'f32)
         if t.sepX.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.sepX.sid, apply: proc(ov: JsonNode) = t.sepX = parseScalarProp(ov, 0.0'f32)))
       if p.hasKey("y"):
-        if hasExpr(p["y"]): warnings.add("layer '" & layerName & "': position.y has expression, skipped")
+        warnExpr(warnings, "layer '" & layerName & "'", "position.y", p["y"])
         t.sepY = parseScalarProp(p["y"], 0.0'f32)
         if t.sepY.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.sepY.sid, apply: proc(ov: JsonNode) = t.sepY = parseScalarProp(ov, 0.0'f32)))
     else:
       t.position = parsePositionProp(p, lp(0,0))
       if t.position.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.position.sid, apply: proc(ov: JsonNode) = t.position = parsePositionProp(ov, lp(0,0))))
   if j.hasKey("a"):
-    if hasExpr(j["a"]): warnings.add("layer '" & layerName & "': anchor has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "anchor", j["a"])
     t.anchor = parseScalarPointProp(j["a"], lp(0,0))
     if t.anchor.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.anchor.sid, apply: proc(ov: JsonNode) = t.anchor = parseScalarPointProp(ov, lp(0,0))))
   if j.hasKey("s"):
-    if hasExpr(j["s"]): warnings.add("layer '" & layerName & "': scale has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "scale", j["s"])
     t.scale = parseScalarPointProp(j["s"], lp(100,100))
     if t.scale.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.scale.sid, apply: proc(ov: JsonNode) = t.scale = parseScalarPointProp(ov, lp(100,100))))
   if j.hasKey("sk"):
-    if hasExpr(j["sk"]): warnings.add("layer '" & layerName & "': skew has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "skew", j["sk"])
     t.skewAngle = parseScalarProp(j["sk"], 0.0'f32)
     if t.skewAngle.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAngle.sid, apply: proc(ov: JsonNode) = t.skewAngle = parseScalarProp(ov, 0.0'f32)))
   if j.hasKey("sa"):
-    if hasExpr(j["sa"]): warnings.add("layer '" & layerName & "': skew axis has expression, skipped")
+    warnExpr(warnings, "layer '" & layerName & "'", "skew axis", j["sa"])
     t.skewAxis = parseScalarProp(j["sa"], 0.0'f32)
     if t.skewAxis.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.skewAxis.sid, apply: proc(ov: JsonNode) = t.skewAxis = parseScalarProp(ov, 0.0'f32)))
   let has3D = j.hasKey("rx") or j.hasKey("ry") or j.hasKey("rz") or j.hasKey("or")
   if has3D:
     t.has3D = true
     if j.hasKey("rx"):
-      if hasExpr(j["rx"]): warnings.add("layer '" & layerName & "': rx has expression, skipped")
+      warnExpr(warnings, "layer '" & layerName & "'", "rx", j["rx"])
       t.rx = parseScalarProp(j["rx"], 0.0'f32)
       if t.rx.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rx.sid, apply: proc(ov: JsonNode) = t.rx = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("ry"):
-      if hasExpr(j["ry"]): warnings.add("layer '" & layerName & "': ry has expression, skipped")
+      warnExpr(warnings, "layer '" & layerName & "'", "ry", j["ry"])
       t.ry = parseScalarProp(j["ry"], 0.0'f32)
       if t.ry.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.ry.sid, apply: proc(ov: JsonNode) = t.ry = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("rz"):
-      if hasExpr(j["rz"]): warnings.add("layer '" & layerName & "': rz has expression, skipped")
+      warnExpr(warnings, "layer '" & layerName & "'", "rz", j["rz"])
       t.rotation = parseScalarProp(j["rz"], 0.0'f32)
       if t.rotation.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.rotation.sid, apply: proc(ov: JsonNode) = t.rotation = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("or"):
-      if hasExpr(j["or"]): warnings.add("layer '" & layerName & "': orientation has expression, skipped")
+      warnExpr(warnings, "layer '" & layerName & "'", "orientation", j["or"])
       t.orient = parseScalarPointProp(j["or"], lp(0,0))
       if t.orient.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: t.orient.sid, apply: proc(ov: JsonNode) = t.orient = parseScalarPointProp(ov, lp(0,0))))
       # orient z: parse third component
@@ -575,11 +588,11 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
     let f = LottieFillObj(objType: otSolidFill, name: nm, hidden: hd,
       color: newColorProp(LottieColor(r:0,g:0,b:0)), opacity: newScalarProp(255'u8), fillRule: 1)
     if j.hasKey("c"):
-      if hasExpr(j["c"]): warnings.add(ctx & ".c: fill color has expression, skipped")
+      warnExpr(warnings, ctx & ".c", "fill color", j["c"])
       f.color = parseColorProp(j["c"])
       if f.color.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: f.color.sid, apply: proc(ov: JsonNode) = f.color = parseColorProp(ov)))
     if j.hasKey("o"):
-      if hasExpr(j["o"]): warnings.add(ctx & ".o: fill opacity has expression, skipped")
+      warnExpr(warnings, ctx & ".o", "fill opacity", j["o"])
       f.opacity = parseOpacityProp(j["o"], 100.0'f32)
       if f.opacity.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: f.opacity.sid, apply: proc(ov: JsonNode) = f.opacity = parseOpacityProp(ov, 100.0'f32)))
     if j.hasKey("r"): f.fillRule = asInt(j["r"], 1)
@@ -589,15 +602,15 @@ proc parseShape(j: JsonNode; warnings: var seq[string]; ctx: string): LottieObje
       color: newColorProp(LottieColor(r:0,g:0,b:0)), opacity: newScalarProp(255'u8), width: newScalarProp(0.0'f32),
       cap: StrokeCap.Round, join: StrokeJoin.Round, miterLimit: 4.0'f32)
     if j.hasKey("c"):
-      if hasExpr(j["c"]): warnings.add(ctx & ".c: stroke color has expression, skipped")
+      warnExpr(warnings, ctx & ".c", "stroke color", j["c"])
       st.color = parseColorProp(j["c"])
       if st.color.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: st.color.sid, apply: proc(ov: JsonNode) = st.color = parseColorProp(ov)))
     if j.hasKey("o"):
-      if hasExpr(j["o"]): warnings.add(ctx & ".o: stroke opacity has expression, skipped")
+      warnExpr(warnings, ctx & ".o", "stroke opacity", j["o"])
       st.opacity = parseOpacityProp(j["o"], 100.0'f32)
       if st.opacity.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: st.opacity.sid, apply: proc(ov: JsonNode) = st.opacity = parseOpacityProp(ov, 100.0'f32)))
     if j.hasKey("w"):
-      if hasExpr(j["w"]): warnings.add(ctx & ".w: stroke width has expression, skipped")
+      warnExpr(warnings, ctx & ".w", "stroke width", j["w"])
       st.width = parseScalarProp(j["w"], 0.0'f32)
       if st.width.sid != 0: gSlotBindings.add(LottieSlotBinding(sid: st.width.sid, apply: proc(ov: JsonNode) = st.width = parseScalarProp(ov, 0.0'f32)))
     if j.hasKey("lc"): st.cap = StrokeCap(clamp(asInt(j["lc"], 2) - 1, 0, 2))

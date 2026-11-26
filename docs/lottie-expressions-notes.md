@@ -74,10 +74,10 @@ Estado: `pendiente` | `en-alcance` | `fuera-alcance` | `hecho`
 | `if/ternary/for/while` |  | 0 | 4 | pendiente |  |
 | `eval/Function/with/regex` |  | 0 | - | fuera-alcance | Prohibidos por plan. |
 
-## Decisiones abiertas (cerrar antes de Fase 2)
-- **D1. Referencia semántica**: recomendado ThorVG C++ 1.2.0 con expresiones habilitadas (paridad con ThorVG). Donde diverja de AE, seguir ThorVG y anotar.
-- **D2. Modelo de carga**: recomendado registro por hash (Lotties runtime funcionan si precompilados; si no, error estructurado). Alternativa build-time estático más simple pero no carga ficheros arbitrarios.
-- **D3. Aleatoriedad**: `wiggle/random/noise/gaussRandom` requieren replicar algoritmo/semilla de ThorVG para paridad numérica. Decidir en Fase 6.
+## Decisiones
+- **D1 (cerrada, confirmada por usuario 2026-05-19)**: referencia semántica = ThorVG C++ 1.2.0 con `lottie_exp`. Donde diverja de AE, seguir ThorVG y anotar.
+- **D2 (cerrada, confirmada por usuario 2026-05-19)**: registro por hash; política `Strict` por defecto (expresión no compilada => error estructurado). `IgnoreCounted` solo si el llamante la pide.
+- **D3 (abierta, Fase 6)**: `wiggle/random/noise/gaussRandom` - replicar algoritmo/semilla de ThorVG para paridad numérica o solo estadístico.
 
 ## Phase 1 - Oráculo de expresiones (en progreso)
 
@@ -103,7 +103,44 @@ Estado: `pendiente` | `en-alcance` | `fuera-alcance` | `hecho`
 - Rotación/posición/escala: float en propiedades. Dump usa `%.9g`.
 - Decisión pendiente de fijar formalmente en tests de oráculo: tolerancia de comparación (proponer abs 1e-5 para float props, exacto/±1 para uint8 opacity tras conversión).
 
+## Phase 1b - Semántica $bm_rt / oráculo (datos C++ 1.2.0 lottie_exp)
+
+Casos: `tests/lottie/harness/gen_expr_1b_cases.py` -> `tests/lottie/expr_1b_cases/`, oráculos `tests/lottie/expr_1b_golden/`. Audio layer denso: `tests/lottie/expr_golden/audio_layer_dense.jsonl` (0..114 paso 0.5).
+
+### 1) Estado global / fuga $bm_rt (CRÍTICO)
+- `leak_r_to_o`: r asigna `$bm_rt=50`, o tiene expr sin `$bm_rt` (`var x=1;`). Resultado: o devuelve 127 (=50*2.55). **Fuga entre propiedades** en la misma evaluación/contexto.
+- `leak_layer_to_layer`: L1.r asigna 77, L2.r expr sin `$bm_rt`. Resultado: L2.r devuelve 77. **Fuga entre capas**.
+- `leak_frame_to_frame`: r asigna `$bm_rt=99` solo si `time < 0.01`; frames posteriores devuelven 0 (estático). **No se observa fuga entre frames** en este caso aislado.
+- Implicación: `$bm_rt` es estado global mutable del motor JS. Resultado depende del orden de evaluación. **No replicar** este comportamiento en AOT; documentar como no determinista de ThorVG y emitir warning cuando una expr no asigna `$bm_rt` de forma definitiva. AOT debe tratar "no asigna $bm_rt" como `None`/usar estático.
+
+### 2) Asignación condicional
+- `cond_both`: ambas ramas asignan -> valor esperado por rama (10 cuando time<=0.5s, 45 cuando >0.5s).
+- `cond_missing_else`: rama sin asignación -> fallback a estático (0) en frames donde no se asigna; 45 cuando sí. Requiere análisis de asignación definitiva en compilador.
+
+### 3) Tipos de salida / coerción observada
+- `NaN/Infinity/-Infinity`: se devuelven como float (nan/inf/-inf).
+- `undefined`: fallback estático (0).
+- `bool true/false`: observado fallback estático (0) en prop escalar rotación (verificar con más casos; posible ruta toFloat/undefined).
+- `string`: fallback estático (0).
+- escalar en prop vectorial (position): fallback estático `[0,0]`.
+- array en prop escalar (rotation, `[1,2]`): observado `[1]` (coerción por toFloat/Number de array JS? Number([1,2])=NaN, Number([1])=1 - consistente con [1]; confirmar).
+
+### 4) Errores de ejecución
+- identificador no definido y `throw`: `evaluate()` captura excepción, deshabilita expr (`exp->disabled=true`), retorna undefined -> fallback estático. En AOT, identificador desconocido será error de compilación (divergencia consciente, anotar).
+
+### 5) Opacidad (0-100 expr -> uint8)
+- Borde observado: 0->0, 0.4->1, 49.99->127, 50->127, 99.9->254, 100->255. Conversión efectiva `toFloat*2.55f` y cast/trunc a uint8 (50*2.55=127.5 -> 127).
+
+### Tolerancia propuesta (formalizar en tests)
+- Float props: `|a-b| <= 4e-7*|b| + 1e-9` (1-2 ulp float32) tras frontera; comparar valor de propiedad, no float64 interno.
+- Opacity uint8: exacto o ±1 si se demuestra diferencia de redondeo; datos actuales sugieren trunc.
+- Nota: jerryscript puede usar libm propia vs sistema; documentar build.
+
+### Cambio Nim (parser)
+- Warning contado cuando expr no contiene `$bm_rt`: "expression but never assigns $bm_rt; ignored as in ThorVG 1.2.0" (heurística; análisis definitivo en compilador). Elimina silencio semántico en casos tipo test5.
+
 ## Riesgos/observaciones
 - Inventario busca `x` string en cualquier objeto JSON; puede haber falsos positivos/negativos. Validar heurística con casos reales.
-- `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones pero frames golden muestreados insensibles (y además no asignan `$bm_rt`, por lo que ThorVG 1.2.0 cae a fallback).
-- C++ build de referencia ya tiene `lottie_exp`; se puede usar como oráculo de Fase 1.
+- `audio_layer` es el único caso del gate que depende de expresión en frames muestreados; test5 tiene expresiones sin `$bm_rt` (muertas por diseño en ThorVG 1.2.0) - Nim emite warning contado.
+- Fuga `$bm_rt` entre props/capas es comportamiento no determinista dependiente de orden; no replicar en AOT.
+- C++ build de referencia ya tiene `lottie_exp`; se puede usar como oráculo.

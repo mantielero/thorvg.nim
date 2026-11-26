@@ -1,0 +1,170 @@
+{
+  "cases": [
+    {
+      "name": "leak_r_to_o",
+      "frames": [
+        0,
+        1,
+        2
+      ],
+      "desc": "r sets $bm_rt=50, o has expr without $bm_rt - does o leak?"
+    },
+    {
+      "name": "leak_frame_to_frame",
+      "frames": [
+        0,
+        0.5,
+        1,
+        2
+      ],
+      "desc": "r assigns $bm_rt only near t=0; later frames no assignment"
+    },
+    {
+      "name": "leak_layer_to_layer",
+      "frames": [
+        0,
+        1
+      ],
+      "desc": "L1.r sets $bm_rt=77, L2.r expr no $bm_rt"
+    },
+    {
+      "name": "cond_both",
+      "frames": [
+        0,
+        15,
+        16,
+        30
+      ],
+      "desc": "both branches assign (frames fixed so time crosses 0.5s)"
+    },
+    {
+      "name": "cond_missing_else",
+      "frames": [
+        0,
+        15,
+        16,
+        30
+      ],
+      "desc": "only if branch assigns; else no $bm_rt (frames fixed so time crosses 0.5s)"
+    },
+    {
+      "name": "type_nan",
+      "frames": [
+        0
+      ],
+      "desc": "NaN"
+    },
+    {
+      "name": "type_inf",
+      "frames": [
+        0
+      ],
+      "desc": "Infinity"
+    },
+    {
+      "name": "type_ninf",
+      "frames": [
+        0
+      ],
+      "desc": "-Infinity"
+    },
+    {
+      "name": "type_undef",
+      "frames": [
+        0
+      ],
+      "desc": "undefined"
+    },
+    {
+      "name": "type_bool_true",
+      "frames": [
+        0
+      ],
+      "desc": "bool true"
+    },
+    {
+      "name": "type_bool_false",
+      "frames": [
+        0
+      ],
+      "desc": "bool false"
+    },
+    {
+      "name": "type_string",
+      "frames": [
+        0
+      ],
+      "desc": "string"
+    },
+    {
+      "name": "type_scalar_on_vec",
+      "frames": [
+        0
+      ],
+      "desc": "scalar on position"
+    },
+    {
+      "name": "type_array_on_scalar",
+      "frames": [
+        0
+      ],
+      "desc": "array on rotation"
+    },
+    {
+      "name": "err_undef_ident",
+      "frames": [
+        0
+      ],
+      "desc": "undefined identifier"
+    },
+    {
+      "name": "err_throw",
+      "frames": [
+        0
+      ],
+      "desc": "throw"
+    },
+    {
+      "name": "opacity_0",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 0"
+    },
+    {
+      "name": "opacity_0p4",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 0.4"
+    },
+    {
+      "name": "opacity_49p99",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 49.99"
+    },
+    {
+      "name": "opacity_50",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 50"
+    },
+    {
+      "name": "opacity_99p9",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 99.9"
+    },
+    {
+      "name": "opacity_100",
+      "frames": [
+        0
+      ],
+      "desc": "opacity expr 100"
+    }
+  ]
+}
